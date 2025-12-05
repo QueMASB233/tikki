@@ -19,7 +19,6 @@ Webapp estilo ChatGPT para asesoría académica con IA, construida con **Next.js
 - Cuenta de Supabase (o Postgres compatible)
 - Cuenta de Stripe con modo test habilitado
 - Clave API de DeepSeek (`https://platform.deepseek.com/`)
-- (Opcional) Cuenta de Vercel para despliegue
 
 ## Configuración inicial
 
