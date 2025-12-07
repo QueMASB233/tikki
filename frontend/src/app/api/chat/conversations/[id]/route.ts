@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request);
@@ -16,7 +16,7 @@ export async function DELETE(
       );
     }
 
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
     const supabase = getSupabaseClientWithAuth(request);
     if (!supabase) {
       return NextResponse.json(
@@ -64,7 +64,7 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request);
@@ -75,7 +75,7 @@ export async function PATCH(
       );
     }
 
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
     const body = await request.json();
     const { title } = body;
 

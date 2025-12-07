@@ -213,29 +213,31 @@ function DashboardContent() {
             // Resetear modo transformación después de la respuesta
             resetTransformationAfterResponse();
             
-            // Actualizar lista de conversaciones para reflejar cambios (updated_at)
-            fetchConversations()
-              .then((convs) => {
-                setConversations(convs);
-                // Reemplazar mensaje temporal con el real
-                if (messageId && finalConversationId) {
-                  fetchMessages(finalConversationId)
-                    .then((msgs) => {
-                      const realMessage = msgs.find((m) => m.id === messageId);
-                      if (realMessage) {
-                        setMessages((prev) =>
-                          prev.map((msg) =>
-                            msg.id === tempAssistantId ? realMessage : msg
-                          )
-                        );
-                      }
-                    })
-                    .catch((err) => {
-                      console.error("Error fetching messages after stream:", err);
-                    });
-                }
-              })
-              .catch((err) => console.error("Error fetching conversations:", err));
+            // Recargar todos los mensajes de la conversación para asegurar sincronización
+            if (finalConversationId) {
+              Promise.all([
+                fetchMessages(finalConversationId),
+                fetchConversations()
+              ])
+                .then(([msgs, convs]) => {
+                  // Actualizar conversaciones
+                  setConversations(convs);
+                  // Reemplazar todos los mensajes con los reales de la BD
+                  setMessages(msgs);
+                })
+                .catch((err) => {
+                  console.error("Error fetching data after stream:", err);
+                  // Actualizar conversaciones aunque falle el fetch de mensajes
+                  fetchConversations()
+                    .then(setConversations)
+                    .catch((e) => console.error("Error fetching conversations:", e));
+                });
+            } else {
+              // Si no hay conversationId, solo actualizar conversaciones
+              fetchConversations()
+                .then(setConversations)
+                .catch((err) => console.error("Error fetching conversations:", err));
+            }
           },
           // onError
           (error: string) => {

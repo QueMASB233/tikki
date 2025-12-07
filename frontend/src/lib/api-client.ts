@@ -401,7 +401,10 @@ export async function sendMessageStream(
             
             // Manejar finalización
             if (parsed.done) {
-              onComplete(parsed.message_id || "", parsed.conversation_id || receivedConversationId || conversationId || "");
+              const finalMessageId = parsed.message_id || "";
+              const finalConversationId = parsed.conversation_id || receivedConversationId || conversationId || "";
+              console.log("Stream done:", { finalMessageId, finalConversationId, receivedConversationId, conversationId });
+              onComplete(finalMessageId, finalConversationId);
               return;
             }
           } catch (e) {
@@ -413,13 +416,20 @@ export async function sendMessageStream(
     
     // Si llegamos aquí sin llamar onComplete, pero recibimos chunks, 
     // asumir que el stream terminó correctamente
-    if (hasReceivedChunks && receivedConversationId) {
-      console.warn("Stream ended without done flag, but we have chunks");
-      onComplete("", receivedConversationId);
-    } else if (hasReceivedChunks) {
-      console.warn("Stream ended without done flag or conversation_id");
-      // Usar el conversationId del parámetro si no recibimos uno nuevo
-      onComplete("", conversationId || "");
+    if (hasReceivedChunks) {
+      if (receivedConversationId) {
+        console.warn("Stream ended without done flag, but we have chunks and conversation_id");
+        onComplete("", receivedConversationId);
+      } else if (conversationId) {
+        console.warn("Stream ended without done flag, using provided conversationId");
+        onComplete("", conversationId);
+      } else {
+        console.error("Stream ended without done flag, conversation_id, or provided conversationId");
+        onError("El servidor no devolvió información de finalización");
+      }
+    } else {
+      console.error("Stream ended without receiving any chunks");
+      onError("El servidor no devolvió ninguna respuesta");
     }
   } catch (error: any) {
     console.error("Error reading stream:", error);
