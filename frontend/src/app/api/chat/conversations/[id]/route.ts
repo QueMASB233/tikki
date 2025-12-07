@@ -77,17 +77,18 @@ export async function DELETE(
 
     // 2. Eliminar mensajes
     console.log(`[DELETE ${requestId}] Deleting messages...`);
-    const { error: messagesError, count: messagesCount } = await deleteClient
+    const { error: messagesError, data: deletedMessages } = await deleteClient
       .from("messages")
       .delete()
       .eq("conversation_id", conversationId)
-      .select("*", { count: 'exact', head: true });
+      .select();
 
     if (messagesError) {
       console.error(`[DELETE ${requestId}] Error deleting messages:`, messagesError);
       // Continuar con la eliminación de la conversación aunque falle la de mensajes
     } else {
-      console.log(`[DELETE ${requestId}] Messages deleted successfully (count: ${messagesCount || 'unknown'})`);
+      const messagesCount = deletedMessages?.length || 0;
+      console.log(`[DELETE ${requestId}] Messages deleted successfully (count: ${messagesCount})`);
     }
 
     // 3. Eliminar la conversación
