@@ -3,8 +3,8 @@ import { supabase } from "./supabase-client";
 // import { hashMessage } from "./security/hash-message"; // Ya no se usa
 // import { appConfig } from "./config"; // Ya no se usa para hashing
 
-const backendUrl =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+// Usar rutas relativas - Vercel manejará las API routes automáticamente
+const backendUrl = "/api";
 
 console.log("[API Client] Backend URL:", backendUrl);
 
