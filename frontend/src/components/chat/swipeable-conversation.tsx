@@ -44,7 +44,7 @@ export function SwipeableConversation({
   const DELETE_THRESHOLD = 80; // Píxeles necesarios para activar eliminación
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (isCollapsed) return;
+    if (isCollapsed || editingId === conv.id) return; // No permitir swipe mientras se edita
     setStartX(e.touches[0].clientX);
     setIsSwiping(true);
   };
@@ -125,18 +125,19 @@ export function SwipeableConversation({
           <MessageSquare size={18} className={currentConversationId === conv.id ? "text-white" : "text-text-light"} />
         ) : (
           <div className="min-w-0 flex-1">
-            {editingId === conv.id ? (
-              <input
-                ref={inputRef}
-                type="text"
-                value={editTitle}
-                onChange={(e) => onEditTitleChange(e.target.value)}
-                onBlur={onFinishRename}
-                onKeyDown={onKeyDown}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full rounded border border-primary px-1 py-0.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
-              />
-            ) : (
+                  {editingId === conv.id ? (
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => onEditTitleChange(e.target.value)}
+                      onBlur={onFinishRename}
+                      onKeyDown={onKeyDown}
+                      onClick={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      className="w-full rounded border border-primary px-1 py-0.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  ) : (
               <AnimatedTitle
                 text={conv.title || "Sin título"}
                 className={clsx(
