@@ -31,25 +31,18 @@ export async function GET(request: NextRequest) {
     console.log(`[GET /api/chat/conversations] Querying conversations for user ${user.id}`);
     // Usar RLS para filtrar automáticamente por usuario
     // La política RLS ya filtra por auth.uid(), pero también verificamos user_id para seguridad adicional
-    // IMPORTANTE: No usar cache de Supabase para asegurar datos frescos
+    // IMPORTANTE: Asegurar que obtenemos datos frescos de la base de datos
     const { data: conversations, error } = await supabase
       .from("conversations")
       .select("*")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false })
-      .limit(100) // Limitar a 100 conversaciones para mejor rendimiento
-      .maybeSingle(); // Esto puede causar problemas, mejor quitar
+      .limit(100); // Limitar a 100 conversaciones para mejor rendimiento
     
-    // Corregir: maybeSingle() no es correcto para una lista, usar solo select
-    const { data: conversationsCorrect, error: errorCorrect } = await supabase
-      .from("conversations")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(100);
-    
-    const conversations = conversationsCorrect;
-    const error = errorCorrect;
+    console.log(`[GET /api/chat/conversations] Raw query result: ${conversations?.length || 0} conversations`);
+    if (conversations && conversations.length > 0) {
+      console.log(`[GET /api/chat/conversations] Conversation IDs from DB: ${conversations.map(c => c.id).join(', ')}`);
+    }
 
     if (error) {
       console.error(`[GET /api/chat/conversations] Database error for user ${user.id}:`, error);
