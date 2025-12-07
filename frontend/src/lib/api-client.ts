@@ -305,11 +305,17 @@ export async function sendMessageStream(
   onComplete: (messageId: string, conversationId: string) => void,
   onError: (error: string) => void
 ) {
+  const startTime = Date.now();
+  console.log(`[CLIENT] sendMessageStream started at ${new Date().toISOString()}`);
+  console.log(`[CLIENT] Content length: ${content.length}, conversationId: ${conversationId || 'null'}`);
+  
   const token = typeof window !== "undefined" ? localStorage.getItem("es_token") : null;
   if (!token) {
+    console.error(`[CLIENT] No authentication token found`);
     throw new Error("No authentication token");
   }
 
+  console.log(`[CLIENT] Sending request to ${backendUrl}/chat/send`);
   // Enviar mensaje en texto plano (el backend se encarga de encriptar)
   const response = await fetch(`${backendUrl}/chat/send`, {
     method: "POST",
@@ -323,8 +329,10 @@ export async function sendMessageStream(
     }),
   });
 
+  console.log(`[CLIENT] Response status: ${response.status} ${response.statusText}`);
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Error desconocido" }));
+    console.error(`[CLIENT] Request failed:`, error);
     throw new Error(error.detail || "Error al enviar mensaje");
   }
 
@@ -337,14 +345,18 @@ export async function sendMessageStream(
   let buffer = "";
   let hasReceivedChunks = false;
   let receivedConversationId: string | null = null;
+  let totalChunks = 0;
 
+  console.log(`[CLIENT] Starting to read stream`);
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
+        const duration = Date.now() - startTime;
+        console.log(`[CLIENT] Stream ended after ${duration}ms, chunks received: ${totalChunks}, hasReceivedChunks: ${hasReceivedChunks}`);
         // Si terminó el stream pero no recibimos chunks, puede ser un error
         if (!hasReceivedChunks) {
-          console.warn("Stream ended without receiving any chunks");
+          console.warn(`[CLIENT] Stream ended without receiving any chunks`);
           // Intentar parsear el buffer por si hay un error
           if (buffer.trim()) {
             try {
@@ -389,13 +401,21 @@ export async function sendMessageStream(
             
             // Manejar chunks de contenido
             if (parsed.chunk) {
-              hasReceivedChunks = true;
+              totalChunks++;
+              if (!hasReceivedChunks) {
+                console.log(`[CLIENT] First chunk received`);
+                hasReceivedChunks = true;
+              }
+              if (totalChunks % 10 === 0) {
+                console.log(`[CLIENT] Received ${totalChunks} chunks so far`);
+              }
               onChunk(parsed.chunk);
             }
             
             // Manejar conversación creada
             if (parsed.conversation_id && !parsed.done) {
               receivedConversationId = parsed.conversation_id;
+              console.log(`[CLIENT] Received conversation_id: ${receivedConversationId}`);
               // No llamar onComplete aquí, esperar a que termine el stream
             }
             
@@ -403,7 +423,14 @@ export async function sendMessageStream(
             if (parsed.done) {
               const finalMessageId = parsed.message_id || "";
               const finalConversationId = parsed.conversation_id || receivedConversationId || conversationId || "";
-              console.log("Stream done:", { finalMessageId, finalConversationId, receivedConversationId, conversationId });
+              const duration = Date.now() - startTime;
+              console.log(`[CLIENT] Stream done after ${duration}ms:`, { 
+                finalMessageId, 
+                finalConversationId, 
+                receivedConversationId, 
+                conversationId,
+                totalChunks 
+              });
               onComplete(finalMessageId, finalConversationId);
               return;
             }
@@ -432,10 +459,14 @@ export async function sendMessageStream(
       onError("El servidor no devolvió ninguna respuesta");
     }
   } catch (error: any) {
-    console.error("Error reading stream:", error);
+    const duration = Date.now() - startTime;
+    console.error(`[CLIENT] Error reading stream after ${duration}ms:`, error);
+    console.error(`[CLIENT] Error message: ${error.message}`);
+    console.error(`[CLIENT] Error stack:`, error?.stack);
     onError(error.message || "Error al leer la respuesta del servidor");
   } finally {
     reader.releaseLock();
+    console.log(`[CLIENT] Stream reader released`);
   }
 }
 

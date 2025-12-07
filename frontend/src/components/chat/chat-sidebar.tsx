@@ -104,7 +104,7 @@ export function ChatSidebar({
           "mb-4 flex items-center justify-center rounded-lg border border-border bg-white font-medium text-text hover:border-primary hover:text-primary transition-all min-h-[44px]",
           isCollapsed ? "h-10 w-full" : "gap-2 px-3 py-2 text-xs"
         )}
-        title="Nueva conversación"
+        title="Volver a la pantalla de inicio"
       >
         <Plus size={18} />
         {!isCollapsed && "Nueva conversación"}

@@ -1,5 +1,17 @@
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
 
+// Suprimir el warning de Buffer() deprecated de la librería fernet
+// Este warning viene de crypto-js que usa fernet internamente
+if (typeof process !== 'undefined' && process.env) {
+  const originalEmitWarning = process.emitWarning;
+  process.emitWarning = function(warning: any, ...args: any[]) {
+    if (typeof warning === 'string' && warning.includes('Buffer() is deprecated')) {
+      return; // Suprimir el warning
+    }
+    return originalEmitWarning.call(process, warning, ...args);
+  };
+}
+
 // Inicializar fernet de forma síncrona al cargar el módulo
 let fernetModule: any = null;
 let token: any = null;

@@ -131,6 +131,7 @@ function DashboardContent() {
 
   const handleSend = useCallback(
     async (content: string) => {
+      console.log(`[DASHBOARD] handleSend called with content length: ${content.length}, currentConversationId: ${currentConversationId || 'null'}`);
       let conversationId = currentConversationId;
 
       // Detectar y activar modo transformación
@@ -178,16 +179,25 @@ function DashboardContent() {
         // Si no hay conversación, crear una primero (no usar ID temporal)
         let finalConversationId = conversationId;
         if (!finalConversationId) {
+          console.log(`[DASHBOARD] No conversation ID, creating new conversation`);
           try {
-            const newConv = await createConversation(content.length > 50 ? content.substring(0, 50) + "..." : content);
+            const title = content.length > 50 ? content.substring(0, 50) + "..." : content;
+            console.log(`[DASHBOARD] Creating conversation with title: "${title}"`);
+            const newConv = await createConversation(title);
+            console.log(`[DASHBOARD] Conversation created: ${newConv.id}`);
             finalConversationId = newConv.id;
             setCurrentConversationId(newConv.id);
             // Actualizar sidebar inmediatamente
             setConversations((prev) => [newConv, ...prev]);
+            console.log(`[DASHBOARD] Updated currentConversationId to: ${newConv.id}`);
+            // Asegurar que se muestre la vista de chat (no welcome) después de crear conversación
+            // Esto se maneja automáticamente porque ahora hay currentConversationId
           } catch (error) {
-            console.error("Failed to create conversation:", error);
+            console.error(`[DASHBOARD] Failed to create conversation:`, error);
             throw error;
           }
+        } else {
+          console.log(`[DASHBOARD] Using existing conversation: ${finalConversationId}`);
         }
         
         await sendMessageStream(
@@ -206,7 +216,11 @@ function DashboardContent() {
           },
           // onComplete: reemplazar el mensaje temporal con el real
           (messageId: string, completedConversationId: string) => {
-            console.log("Stream completed:", { messageId, completedConversationId, finalConversationId });
+            console.log(`[DASHBOARD] Stream onComplete called:`, { 
+              messageId, 
+              completedConversationId, 
+              finalConversationId 
+            });
             setStreamingMessageId(null);
             setChatLoading(false);
             
@@ -215,33 +229,51 @@ function DashboardContent() {
             
             // Recargar todos los mensajes de la conversación para asegurar sincronización
             if (finalConversationId) {
+              console.log(`[DASHBOARD] Fetching messages and conversations for: ${finalConversationId}`);
               Promise.all([
                 fetchMessages(finalConversationId),
                 fetchConversations()
               ])
                 .then(([msgs, convs]) => {
+                  console.log(`[DASHBOARD] Fetched ${msgs?.length || 0} messages and ${convs?.length || 0} conversations`);
                   // Actualizar conversaciones
                   setConversations(convs);
                   // Reemplazar todos los mensajes con los reales de la BD
-                  setMessages(msgs);
+                  // Si hay mensajes, usarlos; si no, mantener los temporales pero limpiar el welcome
+                  if (msgs && msgs.length > 0) {
+                    console.log(`[DASHBOARD] Setting ${msgs.length} messages from database`);
+                    setMessages(msgs);
+                  } else {
+                    console.warn(`[DASHBOARD] No messages found in database, keeping temporary messages`);
+                    // Si no hay mensajes en BD, mantener los temporales pero limpiar el welcome
+                    setMessages((prev) => 
+                      prev.filter(msg => msg.id !== "welcome-message")
+                    );
+                  }
                 })
                 .catch((err) => {
-                  console.error("Error fetching data after stream:", err);
+                  console.error(`[DASHBOARD] Error fetching data after stream:`, err);
+                  console.error(`[DASHBOARD] Error details:`, JSON.stringify(err, null, 2));
                   // Actualizar conversaciones aunque falle el fetch de mensajes
                   fetchConversations()
                     .then(setConversations)
-                    .catch((e) => console.error("Error fetching conversations:", e));
+                    .catch((e) => console.error(`[DASHBOARD] Error fetching conversations:`, e));
+                  // Mantener los mensajes temporales si falla el fetch
+                  setMessages((prev) => 
+                    prev.filter(msg => msg.id !== "welcome-message")
+                  );
                 });
             } else {
+              console.warn(`[DASHBOARD] No finalConversationId, only fetching conversations`);
               // Si no hay conversationId, solo actualizar conversaciones
               fetchConversations()
                 .then(setConversations)
-                .catch((err) => console.error("Error fetching conversations:", err));
+                .catch((err) => console.error(`[DASHBOARD] Error fetching conversations:`, err));
             }
           },
           // onError
           (error: string) => {
-            console.error("Stream error:", error);
+            console.error(`[DASHBOARD] Stream onError called:`, error);
             setStreamingMessageId(null);
             setMessages((prev) =>
               prev.map((msg) =>
@@ -254,7 +286,8 @@ function DashboardContent() {
           }
         );
       } catch (error) {
-        console.error("Failed to send message:", error);
+        console.error(`[DASHBOARD] Failed to send message:`, error);
+        console.error(`[DASHBOARD] Error details:`, JSON.stringify(error, null, 2));
         setMessages((prev) =>
           prev.filter(
             (message) =>
@@ -274,18 +307,12 @@ function DashboardContent() {
     router.replace("/");
   };
 
-  const handleNewConversation = async () => {
-    try {
-      // Crear conversación en el backend primero
-      const newConv = await createConversation();
-      // Actualizar UI con la conversación real
-      setCurrentConversationId(newConv.id);
-      setConversations((prev) => [newConv, ...prev]);
-      setMessages([welcomeMessage]);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (error) {
-      console.error("Failed to create conversation", error);
-    }
+  const handleNewConversation = () => {
+    // Solo limpiar la conversación actual y mostrar welcome screen
+    // NO crear una nueva conversación - esto solo se hace desde welcome-screen
+    setCurrentConversationId(null);
+    setMessages([welcomeMessage]);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSelectConversation = (conversationId: string | null) => {
@@ -331,12 +358,11 @@ function DashboardContent() {
 
   // Determinar si mostrar pantalla de bienvenida
   const showWelcome = useMemo(() => {
-    // No mostrar welcome si está cargando o hay mensajes (incluyendo temporales)
+    // No mostrar welcome si está cargando o hay un stream activo
     if (chatLoading || streamingMessageId) return false;
-    if (messages.length === 0) return true;
-    // Si solo hay el mensaje de bienvenida y no hay conversación activa
-    if (messages.length === 1 && messages[0].id === "welcome-message" && !currentConversationId) return true;
-    // Si hay mensajes temporales o reales, no mostrar welcome
+    // Si hay conversación activa, no mostrar welcome
+    if (currentConversationId) return false;
+    // Si hay mensajes reales (no temporales ni welcome), no mostrar welcome
     const hasRealMessages = messages.some(
       (msg) => !msg.id.startsWith("temp-") && msg.id !== "welcome-message"
     );
@@ -344,7 +370,8 @@ function DashboardContent() {
     // Si hay mensajes temporales, no mostrar welcome
     const hasTempMessages = messages.some((msg) => msg.id.startsWith("temp-"));
     if (hasTempMessages) return false;
-    return false;
+    // Mostrar welcome solo si no hay conversación activa y no hay mensajes
+    return true;
   }, [messages, chatLoading, streamingMessageId, currentConversationId]);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);

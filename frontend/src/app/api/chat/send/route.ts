@@ -8,20 +8,29 @@ import { MemoryManager } from "@/lib/api/memory";
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  console.log(`[POST /api/chat/send] Request started at ${new Date().toISOString()}`);
+  
   try {
     const user = await getCurrentUser(request);
     if (!user) {
+      console.error(`[POST /api/chat/send] No user found - unauthorized`);
       return new Response(
         JSON.stringify({ error: "No autorizado" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
 
+    console.log(`[POST /api/chat/send] User authenticated: ${user.id} (${user.email})`);
+
     const body = await request.json();
     const content = body.content?.trim();
     const conversationId = body.conversation_id || null;
 
+    console.log(`[POST /api/chat/send] Message content length: ${content?.length || 0}, conversationId: ${conversationId || 'null'}`);
+
     if (!content) {
+      console.error(`[POST /api/chat/send] Empty content for user ${user.id}`);
       return new Response(
         JSON.stringify({ error: "El mensaje no puede estar vacío" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -30,6 +39,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseClientWithAuth(request);
     if (!supabase) {
+      console.error(`[POST /api/chat/send] Supabase client creation failed for user ${user.id}`);
       return new Response(
         JSON.stringify({ error: "Error de autenticación" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
@@ -43,14 +53,18 @@ export async function POST(request: NextRequest) {
         const encoder = new TextEncoder();
 
         try {
+          console.log(`[POST /api/chat/send] Stream started for user ${user.id}, conversationId: ${conversationId}`);
+          
           // Validar que conversationId sea un UUID válido
           const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
           if (!conversationId || !uuidRegex.test(conversationId)) {
+            console.error(`[POST /api/chat/send] Invalid conversationId format: ${conversationId} for user ${user.id}`);
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "ID de conversación inválido. Por favor, crea una nueva conversación." })}\n\n`));
             controller.close();
             return;
           }
 
+          console.log(`[POST /api/chat/send] Validating conversation ${conversationId} for user ${user.id}`);
           // Verificar que la conversación existe y pertenece al usuario
           const { data: existingConv, error: convCheckError } = await supabase
             .from("conversations")
@@ -60,10 +74,14 @@ export async function POST(request: NextRequest) {
             .single();
 
           if (convCheckError || !existingConv) {
+            console.error(`[POST /api/chat/send] Conversation validation failed:`, convCheckError);
+            console.error(`[POST /api/chat/send] Error code: ${convCheckError?.code}, message: ${convCheckError?.message}`);
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Conversación no encontrada o no autorizada" })}\n\n`));
             controller.close();
             return;
           }
+
+          console.log(`[POST /api/chat/send] Conversation validated: ${conversationId}`);
 
           // Actualizar timestamp de la conversación
           await supabase
@@ -74,7 +92,11 @@ export async function POST(request: NextRequest) {
           const finalConversationId = conversationId;
 
           // 2. Insertar mensaje del usuario
+          console.log(`[POST /api/chat/send] Encrypting user message (length: ${content.length})`);
           const encryptedContent = encryptMessage(content);
+          console.log(`[POST /api/chat/send] Encrypted message length: ${encryptedContent.length}`);
+          
+          console.log(`[POST /api/chat/send] Inserting user message into database`);
           const { data: userMsg, error: userMsgError } = await supabase
             .from("messages")
             .insert({
@@ -87,10 +109,14 @@ export async function POST(request: NextRequest) {
             .single();
 
           if (userMsgError || !userMsg) {
+            console.error(`[POST /api/chat/send] Failed to insert user message:`, userMsgError);
+            console.error(`[POST /api/chat/send] Error code: ${userMsgError?.code}, message: ${userMsgError?.message}`);
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "No se pudo insertar el mensaje del usuario" })}\n\n`));
             controller.close();
             return;
           }
+
+          console.log(`[POST /api/chat/send] User message inserted: ${userMsg.id}`);
 
           // 3. Recuperar contexto de memoria
           const semanticFacts = await memory.searchSemantic(user.id, content, 5);
@@ -168,13 +194,17 @@ export async function POST(request: NextRequest) {
               }
             }
 
+            console.log(`[POST /api/chat/send] LLM stream completed: ${chunksReceived} chunks, total length: ${fullResponse.length}`);
+            
             if (chunksReceived === 0) {
+              console.error(`[POST /api/chat/send] No chunks received from LLM for conversation ${finalConversationId}`);
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "El modelo no devolvió ninguna respuesta" })}\n\n`));
               controller.close();
               return;
             }
 
             if (!fullResponse || !fullResponse.trim()) {
+              console.error(`[POST /api/chat/send] Empty response from LLM for conversation ${finalConversationId}`);
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "El modelo devolvió una respuesta vacía" })}\n\n`));
               controller.close();
               return;
@@ -248,10 +278,15 @@ export async function POST(request: NextRequest) {
           }
 
           // 11. Enviar mensaje final
+          const duration = Date.now() - startTime;
+          console.log(`[POST /api/chat/send] Stream completed successfully in ${duration}ms for conversation ${finalConversationId}, message ${assistantMsg.id}`);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, message_id: assistantMsg.id, conversation_id: finalConversationId })}\n\n`));
           controller.close();
         } catch (error: any) {
-          console.error("Error in streaming:", error);
+          const duration = Date.now() - startTime;
+          console.error(`[POST /api/chat/send] Error in streaming after ${duration}ms:`, error);
+          console.error(`[POST /api/chat/send] Error message: ${error.message}`);
+          console.error(`[POST /api/chat/send] Error stack:`, error?.stack);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: error.message || String(error) })}\n\n`));
           controller.close();
         }
