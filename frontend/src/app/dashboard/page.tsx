@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
@@ -23,6 +24,7 @@ import { Message } from "@/lib/api-client";
 
 function DashboardContent() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, loading, logout } = useAuth();
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
@@ -108,10 +110,16 @@ function DashboardContent() {
           onCreateConversation: async (newConversationId) => {
             // Cuando se crea una nueva conversación, establecerla como activa
             // Esto hará que showWelcome cambie a false y muestre los mensajes
-            console.log(`[DASHBOARD] New conversation created: ${newConversationId}, forcing refetch`);
+            console.log(`[DASHBOARD] New conversation created: ${newConversationId}, invalidating queries`);
             setCurrentConversationId(newConversationId);
-            // Forzar refetch para asegurar que aparezca en el sidebar
-            await refetchConversations();
+            // Invalidar y refetch para asegurar que aparezca en el sidebar
+            // Usar invalidateQueries para que React Query maneje mejor el timing
+            queryClient.invalidateQueries({ queryKey: ["conversations"] });
+            // Refetch inmediatamente para actualizar el sidebar
+            await queryClient.refetchQueries({ 
+              queryKey: ["conversations"],
+              type: 'active' // Solo refetch queries activos
+            });
           },
           onStreamingMessageId: (id) => {
             setStreamingMessageId(id);
@@ -125,7 +133,13 @@ function DashboardContent() {
         resetTransformationAfterResponse();
         setStreamingMessageId(null);
         // Asegurar que las conversaciones estén actualizadas después del stream
-        await refetchConversations();
+        // El hook ya invalida las conversaciones en onComplete, pero hacemos un refetch adicional
+        // para asegurar que el sidebar esté actualizado
+        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        await queryClient.refetchQueries({ 
+          queryKey: ["conversations"],
+          type: 'active'
+        });
       } catch (error) {
         console.error("[DASHBOARD] Failed to send message:", error);
         setStreamingMessageId(null);
@@ -135,7 +149,7 @@ function DashboardContent() {
         }
       }
     },
-    [currentConversationId, sendMessageMutation, playTransformation, refetchConversations]
+    [currentConversationId, sendMessageMutation, playTransformation, queryClient]
   );
 
   const handleNewConversation = useCallback(() => {

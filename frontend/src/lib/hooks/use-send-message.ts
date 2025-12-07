@@ -49,10 +49,17 @@ export function useSendMessage() {
           return [...updated];
         });
         
-        // Forzar refetch inmediato para asegurar sincronización
-        await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+        // Invalidar y refetch para asegurar sincronización con el backend
+        // Usar invalidateQueries para que React Query maneje mejor el timing
+        queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+        // Refetch inmediatamente para actualizar el sidebar
+        await queryClient.refetchQueries({ 
+          queryKey: CONVERSATIONS_QUERY_KEY,
+          type: 'active' // Solo refetch queries activos
+        });
         
         // Notificar al componente que se creó una conversación
+        // Esto debe hacerse después del refetch para asegurar que el sidebar se actualice
         if (onCreateConversation) {
           onCreateConversation(finalConversationId);
         }
