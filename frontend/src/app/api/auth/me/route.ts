@@ -13,13 +13,19 @@ function getSupabaseClient() {
 }
 
 async function getCurrentUser(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return null;
+  }
+
   const authHeader = request.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return null;
   }
 
   const token = authHeader.replace("Bearer ", "");
-  const { supabaseUrl, supabaseAnonKey } = getSupabaseClient();
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
