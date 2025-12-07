@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
               chunksReceived++;
               fullResponse += chunk;
 
-              if (memoryMarker in fullResponse) {
+              if (fullResponse.includes(memoryMarker)) {
                 const textPart = fullResponse.split(memoryMarker)[0];
                 if (textPart.length > lastSentLength) {
                   const newChunk = textPart.substring(lastSentLength);
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Asegurar que se envió todo el contenido
-          if (memoryMarker in fullResponse) {
+          if (fullResponse.includes(memoryMarker)) {
             // Ya se envió todo antes del marcador
           } else if (assistantContent.length > lastSentLength) {
             const remaining = assistantContent.substring(lastSentLength);
