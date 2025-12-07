@@ -98,16 +98,13 @@ export function ChatMessageItem({ message, isStreaming = false }: ChatMessageIte
   const [currentPhrase, setCurrentPhrase] = useState("");
   const [isClicking, setIsClicking] = useState(false);
   
-  if (message.role === "system") {
-    return null;
-  }
-
   const isUser = message.role === "user";
   
   // Limpiar el contenido de espacios y caracteres extraños al final
   const cleanContent = message.content?.trimEnd() || "";
 
   // Reproducir sonido cuando llega una respuesta del bot (solo la primera vez)
+  // Este hook debe estar antes de cualquier return condicional
   useEffect(() => {
     if (!isUser && cleanContent && appConfig.enableSounds && !isStreaming) {
       // Pequeño delay para que se sienta natural
@@ -117,6 +114,10 @@ export function ChatMessageItem({ message, isStreaming = false }: ChatMessageIte
       return () => clearTimeout(timer);
     }
   }, [message.id, isUser, cleanContent, isStreaming, playReceive]);
+
+  if (message.role === "system") {
+    return null;
+  }
 
   const handleAvatarClick = () => {
     if (isUser) return;

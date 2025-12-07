@@ -144,13 +144,13 @@ export default function PWAPrompt() {
 
         <div className="pr-6">
           <h3 className="text-lg font-semibold text-slate-800 mb-2">
-            Instala Estudia Seguro
+            Instala Tikki en tu cell...
           </h3>
           <p className="text-sm text-slate-600 mb-4 leading-relaxed">
             {isIOS ? (
               <>
-                Toca el botón <span className="font-semibold">"Compartir"</span> y selecciona{" "}
-                <span className="font-semibold">"Agregar a pantalla de inicio"</span> para una mejor experiencia.
+                Toca el botón <span className="font-semibold">&quot;Compartir&quot;</span> y selecciona{" "}
+                <span className="font-semibold">&quot;Agregar a pantalla de inicio&quot;</span> para una mejor experiencia.
               </>
             ) : (
               <>

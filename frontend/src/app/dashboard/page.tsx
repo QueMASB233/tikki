@@ -249,7 +249,7 @@ export default function DashboardPage() {
         throw error;
       }
     },
-    [currentConversationId]
+    [currentConversationId, playTransformation]
   );
 
   const handleLogout = () => {

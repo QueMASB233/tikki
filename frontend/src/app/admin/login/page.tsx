@@ -9,22 +9,8 @@ const ADMIN_DOMAIN = "@estudiaseguro.com";
 export default function AdminLoginPage() {
   const router = useRouter();
   
-  // Manejar errores del contexto de forma segura
-  let adminContext;
-  try {
-    adminContext = useAdmin();
-  } catch (error) {
-    console.error("Error con AdminContext:", error);
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center text-red-600">
-          Error: El contexto de administrador no está disponible. 
-          Asegúrate de que AdminProvider esté configurado correctamente.
-        </div>
-      </div>
-    );
-  }
-
+  // Todos los hooks deben estar al inicio, antes de cualquier return condicional
+  const adminContext = useAdmin();
   const { admin, login, loading: authLoading } = adminContext;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,6 +22,18 @@ export default function AdminLoginPage() {
       router.push("/admin/dashboard");
     }
   }, [admin, router]);
+  
+  // Manejar errores del contexto después de los hooks
+  if (!adminContext) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center text-red-600">
+          Error: El contexto de administrador no está disponible. 
+          Asegúrate de que AdminProvider esté configurado correctamente.
+        </div>
+      </div>
+    );
+  }
 
   const validateEmail = (email: string): boolean => {
     return email.endsWith(ADMIN_DOMAIN);
