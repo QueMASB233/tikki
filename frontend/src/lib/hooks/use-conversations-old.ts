@@ -26,16 +26,14 @@ export function useCreateConversation() {
         const exists = old.some(conv => conv.id === newConversation.id);
         if (exists) {
           console.log(`[useCreateConversation] Conversation ${newConversation.id} already in cache, updating`);
-          // Retornar nuevo array para forzar re-render
           return old.map(conv => conv.id === newConversation.id ? newConversation : conv);
         }
         console.log(`[useCreateConversation] Adding to cache: ${old.length} -> ${old.length + 1}`);
-        // Ordenar por updated_at descendente y retornar nuevo array
+        // Ordenar por updated_at descendente
         const updated = [newConversation, ...old].sort((a, b) => 
           new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
         );
-        console.log(`[useCreateConversation] Updated conversation IDs: ${updated.map(c => c.id).join(', ')}`);
-        return [...updated]; // Nuevo array para forzar re-render
+        return updated;
       });
       // Forzar refetch inmediato para asegurar sincronización
       await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
@@ -66,9 +64,7 @@ export function useDeleteConversation() {
       queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => {
         const filtered = old.filter((conv) => conv.id !== conversationId);
         console.log(`[useDeleteConversation] Optimistic update: ${old.length} -> ${filtered.length} conversations`);
-        console.log(`[useDeleteConversation] Remaining conversation IDs: ${filtered.map(c => c.id).join(', ')}`);
-        // Retornar nuevo array para forzar re-render
-        return [...filtered];
+        return filtered;
       });
 
       // Remover queries de mensajes de esta conversación del cache
@@ -123,11 +119,10 @@ export function useRenameConversation() {
 
       const previousConversations = queryClient.getQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY);
 
-      // Optimistic update - retornar nuevo array
-      queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => {
-        const updated = old.map((conv) => (conv.id === conversationId ? { ...conv, title } : conv));
-        return [...updated]; // Nuevo array para forzar re-render
-      });
+      // Optimistic update
+      queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) =>
+        old.map((conv) => (conv.id === conversationId ? { ...conv, title } : conv))
+      );
 
       return { previousConversations };
     },
