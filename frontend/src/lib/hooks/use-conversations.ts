@@ -32,39 +32,60 @@ export function useDeleteConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (conversationId: string) => deleteConversation(conversationId),
+    mutationFn: (conversationId: string) => {
+      console.log(`[useDeleteConversation] Deleting conversation: ${conversationId}`);
+      return deleteConversation(conversationId);
+    },
     onMutate: async (conversationId) => {
+      console.log(`[useDeleteConversation] onMutate: ${conversationId}`);
+      
       // Cancelar queries en progreso para evitar sobrescribir el optimistic update
       await queryClient.cancelQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
       await queryClient.cancelQueries({ queryKey: ["messages", conversationId] });
 
       // Snapshot del valor anterior
       const previousConversations = queryClient.getQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY);
+      console.log(`[useDeleteConversation] Previous conversations count: ${previousConversations?.length || 0}`);
 
       // Optimistic update: remover la conversación inmediatamente
-      queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) =>
-        old.filter((conv) => conv.id !== conversationId)
-      );
+      queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => {
+        const filtered = old.filter((conv) => conv.id !== conversationId);
+        console.log(`[useDeleteConversation] Optimistic update: ${old.length} -> ${filtered.length} conversations`);
+        return filtered;
+      });
 
       // Remover queries de mensajes de esta conversación del cache
       queryClient.removeQueries({ queryKey: ["messages", conversationId] });
+      
+      // Limpiar cualquier referencia en otros queries relacionados
+      queryClient.removeQueries({ 
+        queryKey: ["messages", conversationId],
+        exact: false 
+      });
 
       return { previousConversations, conversationId };
     },
     onError: (err, conversationId, context) => {
-      console.error("[useDeleteConversation] Error deleting conversation:", err);
+      console.error(`[useDeleteConversation] Error deleting conversation ${conversationId}:`, err);
       // Rollback en caso de error
       if (context?.previousConversations) {
+        console.log(`[useDeleteConversation] Rolling back to previous state`);
         queryClient.setQueryData(CONVERSATIONS_QUERY_KEY, context.previousConversations);
       }
     },
-    onSuccess: () => {
+    onSuccess: (data, conversationId) => {
+      console.log(`[useDeleteConversation] Successfully deleted conversation ${conversationId}`);
       // Invalidar para asegurar sincronización (pero el optimistic update ya se aplicó)
       queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+      // Asegurar que los mensajes también se limpien
+      queryClient.removeQueries({ queryKey: ["messages", conversationId] });
     },
-    onSettled: () => {
+    onSettled: (data, error, conversationId) => {
+      console.log(`[useDeleteConversation] onSettled for ${conversationId}, error: ${!!error}`);
       // Asegurar que todo esté sincronizado
       queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+      // Limpiar cualquier rastro restante
+      queryClient.removeQueries({ queryKey: ["messages", conversationId] });
     },
   });
 }

@@ -272,7 +272,21 @@ export async function createConversation(title?: string) {
 }
 
 export async function deleteConversation(conversationId: string) {
-  await apiClient.delete(`/chat/conversations/${conversationId}`);
+  console.log(`[API Client] Deleting conversation: ${conversationId}`);
+  try {
+    const response = await apiClient.delete(`/chat/conversations/${conversationId}`);
+    console.log(`[API Client] Delete response status: ${response.status}`);
+    return response;
+  } catch (error: any) {
+    console.error(`[API Client] Error deleting conversation ${conversationId}:`, error);
+    // Si es un 404, puede ser que la conversación ya no exista (race condition)
+    if (error.response?.status === 404) {
+      console.warn(`[API Client] Conversation ${conversationId} not found (may have been already deleted)`);
+      // No lanzar error, considerar como éxito (idempotente)
+      return { status: 204 };
+    }
+    throw error;
+  }
 }
 
 export async function renameConversation(conversationId: string, title: string) {

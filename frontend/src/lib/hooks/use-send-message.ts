@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { sendMessageStream, createConversation, Message } from "@/lib/api-client";
+import { sendMessageStream, createConversation, Message, Conversation } from "@/lib/api-client";
 
 interface SendMessageOptions {
   content: string;
@@ -19,13 +19,31 @@ export function useSendMessage() {
       // Si no hay conversación, crear una primero
       if (!finalConversationId) {
         const title = content.length > 50 ? content.substring(0, 50) + "..." : content;
+        console.log(`[useSendMessage] Creating new conversation with title: "${title}"`);
+        
         const newConv = await createConversation(title);
         finalConversationId = newConv.id;
         
-        // Actualizar cache de conversaciones con optimistic update
-        queryClient.setQueryData(["conversations"], (old: any[] = []) => [newConv, ...old]);
+        console.log(`[useSendMessage] Conversation created: ${finalConversationId}`);
         
-        // Invalidar para refetch en background
+        // Actualizar cache de conversaciones con optimistic update
+        // Usar el mismo query key que useConversations
+        queryClient.setQueryData<Conversation[]>(["conversations"], (old = []) => {
+          // Verificar que no exista ya (evitar duplicados)
+          const exists = old.some(conv => conv.id === newConv.id);
+          if (exists) {
+            console.log(`[useSendMessage] Conversation ${finalConversationId} already in cache, updating`);
+            return old.map(conv => conv.id === newConv.id ? newConv : conv);
+          }
+          console.log(`[useSendMessage] Adding new conversation to cache: ${old.length} -> ${old.length + 1}`);
+          // Agregar al inicio y ordenar por updated_at descendente
+          const updated = [newConv, ...old].sort((a, b) => 
+            new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+          );
+          return updated;
+        });
+        
+        // Invalidar para refetch en background y asegurar sincronización
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
         
         // Notificar al componente que se creó una conversación

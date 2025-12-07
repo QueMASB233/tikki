@@ -117,7 +117,15 @@ export async function POST(request: NextRequest) {
 
     const duration = Date.now() - startTime;
     console.log(`[POST /api/chat/conversations] Success: Created conversation ${conversation.id} for user ${user.id} in ${duration}ms`);
-    return NextResponse.json(conversation);
+    console.log(`[POST /api/chat/conversations] Returning conversation:`, JSON.stringify(conversation));
+    
+    // Asegurar que retornamos todos los campos necesarios
+    return NextResponse.json({
+      id: conversation.id,
+      title: conversation.title,
+      created_at: conversation.created_at,
+      updated_at: conversation.updated_at || conversation.created_at,
+    });
   } catch (error: any) {
     const duration = Date.now() - startTime;
     console.error(`[POST /api/chat/conversations] Exception after ${duration}ms:`, error);

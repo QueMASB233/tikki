@@ -140,16 +140,26 @@ function DashboardContent() {
 
   const handleDeleteConversation = useCallback(
     async (conversationId: string) => {
-      // Si estamos viendo esta conversación, redirigir al welcome
+      console.log(`[DASHBOARD] handleDeleteConversation called for: ${conversationId}`);
+      
+      // Si estamos viendo esta conversación, redirigir al welcome inmediatamente
       if (currentConversationId === conversationId) {
+        console.log(`[DASHBOARD] Deleting active conversation, redirecting to welcome`);
         setCurrentConversationId(null);
       }
 
       // El hook maneja el optimistic update
       // Si falla, el hook hará rollback automáticamente
       deleteConversationMutation.mutate(conversationId, {
+        onSuccess: () => {
+          console.log(`[DASHBOARD] Conversation ${conversationId} deleted successfully`);
+          // Asegurar que no quede rastro
+          if (currentConversationId === conversationId) {
+            setCurrentConversationId(null);
+          }
+        },
         onError: (error) => {
-          console.error("[DASHBOARD] Failed to delete conversation:", error);
+          console.error(`[DASHBOARD] Failed to delete conversation ${conversationId}:`, error);
           // Aquí podrías mostrar un toast de error si implementas el sistema de toasts
         },
       });
