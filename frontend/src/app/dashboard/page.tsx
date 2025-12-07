@@ -100,10 +100,13 @@ function DashboardContent() {
         const result = await sendMessageMutation.mutateAsync({
           content,
           conversationId: currentConversationId,
-          onCreateConversation: (newConversationId) => {
+          onCreateConversation: async (newConversationId) => {
             // Cuando se crea una nueva conversación, establecerla como activa
             // Esto hará que showWelcome cambie a false y muestre los mensajes
+            console.log(`[DASHBOARD] New conversation created: ${newConversationId}, forcing refetch`);
             setCurrentConversationId(newConversationId);
+            // Forzar refetch para asegurar que aparezca en el sidebar
+            await refetchConversations();
           },
           onStreamingMessageId: (id) => {
             setStreamingMessageId(id);
@@ -116,6 +119,8 @@ function DashboardContent() {
         // Resetear modo transformación después de la respuesta
         resetTransformationAfterResponse();
         setStreamingMessageId(null);
+        // Asegurar que las conversaciones estén actualizadas después del stream
+        await refetchConversations();
       } catch (error) {
         console.error("[DASHBOARD] Failed to send message:", error);
         setStreamingMessageId(null);
