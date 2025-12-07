@@ -85,6 +85,15 @@ img, video, iframe {
   border-radius: 999px;
 }
 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Animaciones para el onboarding */
 @keyframes slideInFromRight {
   from {

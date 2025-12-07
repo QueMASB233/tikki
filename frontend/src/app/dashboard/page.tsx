@@ -257,14 +257,34 @@ function DashboardContent() {
   };
 
   const handleNewConversation = async () => {
+    // Crear conversación optimista (actualizar UI inmediatamente)
+    const tempId = `temp-${Date.now()}`;
+    const tempConv = {
+      id: tempId,
+      title: "Nueva conversación",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    
+    // Actualizar UI inmediatamente
+    setCurrentConversationId(tempId);
+    setConversations((prev) => [tempConv, ...prev]);
+    setMessages([welcomeMessage]);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    
+    // Crear conversación en el backend
     try {
       const newConv = await createConversation();
+      // Reemplazar la conversación temporal con la real
       setCurrentConversationId(newConv.id);
-      setConversations((prev) => [newConv, ...prev]);
-      setMessages([welcomeMessage]);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setConversations((prev) => 
+        prev.map(conv => conv.id === tempId ? newConv : conv)
+      );
     } catch (error) {
       console.error("Failed to create conversation", error);
+      // Revertir si falla
+      setCurrentConversationId(null);
+      setConversations((prev) => prev.filter(conv => conv.id !== tempId));
     }
   };
 
@@ -274,9 +294,22 @@ function DashboardContent() {
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
-    // Guardar estado anterior para rollback
-    const previousConversations = [...conversations];
-    const previousCurrentId = currentConversationId;
+    // Optimistic update - eliminar inmediatamente
+    setConversations((prev) => prev.filter((conv) => conv.id !== conversationId));
+    if (currentConversationId === conversationId) {
+      setCurrentConversationId(null);
+      setMessages([welcomeMessage]);
+    }
+
+    // Eliminar en el backend (sin esperar)
+    deleteConversation(conversationId).catch((error) => {
+      console.error("Failed to delete conversation", error);
+      // Recargar conversaciones si falla
+      fetchConversations()
+        .then(setConversations)
+        .catch((err) => console.error("Error fetching conversations:", err));
+    });
+  };
     const previousMessages = [...messages];
 
     // Actualización optimista

@@ -93,6 +93,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             className="max-h-48 min-h-[44px] w-full resize-none bg-transparent px-3 py-2 text-sm text-text placeholder:text-text-light focus:outline-none disabled:opacity-50"
             disabled={disabled}
             rows={1}
+            style={{ fontSize: '16px' }}
           />
           <button
             type="submit"

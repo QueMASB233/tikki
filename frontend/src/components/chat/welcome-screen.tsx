@@ -73,22 +73,26 @@ export function WelcomeScreen({ userName, onSend }: WelcomeScreenProps) {
           </div>
         </form>
 
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {[
-            { emoji: "✨", text: "Organizar mi día" },
-            { emoji: "💪", text: "Motivación y ánimo" },
-            { emoji: "🎯", text: "Recordar mis objetivos" },
-            { emoji: "💬", text: "Charla y compañía" }
-          ].map((suggestion) => (
-            <button
-              key={suggestion.text}
-              onClick={() => onSend(suggestion.text)}
-              className="rounded-lg border border-border bg-white px-4 py-2 text-xs sm:text-sm text-text font-medium transition-all hover:border-primary hover:text-primary min-h-[44px]"
-            >
-              <span className="mr-2">{suggestion.emoji}</span>
-              {suggestion.text}
-            </button>
-          ))}
+        <div className="mt-6 w-full">
+          <div className="overflow-x-auto scrollbar-hide -mx-2 px-2">
+            <div className="flex gap-2 justify-start sm:justify-center min-w-max sm:min-w-0">
+              {[
+                { emoji: "✨", text: "Organizar mi día" },
+                { emoji: "💪", text: "Motivación y ánimo" },
+                { emoji: "🎯", text: "Recordar mis objetivos" },
+                { emoji: "💬", text: "Charla y compañía" }
+              ].map((suggestion) => (
+                <button
+                  key={suggestion.text}
+                  onClick={() => onSend(suggestion.text)}
+                  className="flex-shrink-0 rounded-lg border border-border bg-white px-4 py-2 text-xs sm:text-sm text-text font-medium transition-all hover:border-primary hover:text-primary min-h-[44px] whitespace-nowrap"
+                >
+                  <span className="mr-2">{suggestion.emoji}</span>
+                  {suggestion.text}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
