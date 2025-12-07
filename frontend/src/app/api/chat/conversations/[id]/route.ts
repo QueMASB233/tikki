@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser, getSupabaseClientWithAuth } from "@/lib/api/auth-helper";
+import { getCurrentUser, getSupabaseClientWithAuth, getSupabaseAdmin } from "@/lib/api/auth-helper";
 
 export const dynamic = 'force-dynamic';
 
@@ -50,27 +50,54 @@ export async function DELETE(
       );
     }
 
-    console.log(`[DELETE ${requestId}] Conversation verified, deleting messages...`);
+    console.log(`[DELETE ${requestId}] Conversation verified, deleting all related data...`);
 
-    // Eliminar mensajes primero
-    const { error: messagesError } = await supabase
-      .from("messages")
+    // Usar admin client para bypass RLS y asegurar eliminación completa
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      console.error(`[DELETE ${requestId}] Failed to create admin client, falling back to auth client`);
+    }
+
+    // Usar admin client si está disponible, sino usar el auth client
+    const deleteClient = supabaseAdmin || supabase;
+
+    // 1. Eliminar conversation_summary primero (si existe)
+    console.log(`[DELETE ${requestId}] Deleting conversation_summary...`);
+    const { error: summaryError } = await deleteClient
+      .from("conversation_summary")
       .delete()
       .eq("conversation_id", conversationId);
+
+    if (summaryError) {
+      console.warn(`[DELETE ${requestId}] Warning deleting conversation_summary:`, summaryError);
+      // Continuar aunque falle
+    } else {
+      console.log(`[DELETE ${requestId}] Conversation summary deleted successfully`);
+    }
+
+    // 2. Eliminar mensajes
+    console.log(`[DELETE ${requestId}] Deleting messages...`);
+    const { error: messagesError, count: messagesCount } = await deleteClient
+      .from("messages")
+      .delete()
+      .eq("conversation_id", conversationId)
+      .select("*", { count: 'exact', head: true });
 
     if (messagesError) {
       console.error(`[DELETE ${requestId}] Error deleting messages:`, messagesError);
       // Continuar con la eliminación de la conversación aunque falle la de mensajes
     } else {
-      console.log(`[DELETE ${requestId}] Messages deleted successfully`);
+      console.log(`[DELETE ${requestId}] Messages deleted successfully (count: ${messagesCount || 'unknown'})`);
     }
 
-    // Eliminar la conversación
-    const { error: deleteError, data: deleteData } = await supabase
+    // 3. Eliminar la conversación
+    console.log(`[DELETE ${requestId}] Deleting conversation...`);
+    const { error: deleteError, data: deleteData } = await deleteClient
       .from("conversations")
       .delete()
       .eq("id", conversationId)
-      .select(); // Select para verificar que se eliminó
+      .eq("user_id", user.id) // Verificar ownership también
+      .select();
 
     if (deleteError) {
       console.error(`[DELETE ${requestId}] Error deleting conversation:`, deleteError);
@@ -80,22 +107,63 @@ export async function DELETE(
       );
     }
 
+    if (!deleteData || deleteData.length === 0) {
+      console.warn(`[DELETE ${requestId}] No conversation was deleted (may have been already deleted)`);
+      // Retornar éxito de todas formas (idempotente)
+      return new NextResponse(null, { 
+        status: 204,
+        headers: {
+          'Content-Length': '0',
+        }
+      });
+    }
+
     const duration = Date.now() - startTime;
     console.log(`[DELETE ${requestId}] Conversation ${conversationId} deleted successfully in ${duration}ms`);
     console.log(`[DELETE ${requestId}] Delete result:`, deleteData);
 
-    // Verificar que la conversación fue eliminada consultando de nuevo
-    const { data: verifyData } = await supabase
+    // 4. Verificar que la conversación fue eliminada usando admin client (bypass RLS)
+    console.log(`[DELETE ${requestId}] Verifying deletion...`);
+    const verifyClient = supabaseAdmin || supabase;
+    const { data: verifyData } = await verifyClient
       .from("conversations")
       .select("id")
       .eq("id", conversationId)
-      .eq("user_id", user.id)
       .maybeSingle();
     
     if (verifyData) {
-      console.warn(`[DELETE ${requestId}] WARNING: Conversation ${conversationId} still exists after delete!`);
+      console.error(`[DELETE ${requestId}] ERROR: Conversation ${conversationId} still exists after delete!`);
+      // Intentar eliminar de nuevo con admin
+      if (supabaseAdmin) {
+        console.log(`[DELETE ${requestId}] Retrying deletion with admin client...`);
+        const { error: retryError } = await supabaseAdmin
+          .from("conversations")
+          .delete()
+          .eq("id", conversationId);
+        
+        if (retryError) {
+          console.error(`[DELETE ${requestId}] Retry deletion failed:`, retryError);
+        } else {
+          console.log(`[DELETE ${requestId}] Successfully deleted on retry`);
+        }
+      }
     } else {
       console.log(`[DELETE ${requestId}] Verified: Conversation ${conversationId} successfully removed from database`);
+    }
+
+    // 5. Verificar que no queden mensajes huérfanos
+    const { data: orphanMessages } = await verifyClient
+      .from("messages")
+      .select("id")
+      .eq("conversation_id", conversationId)
+      .limit(1);
+    
+    if (orphanMessages && orphanMessages.length > 0) {
+      console.warn(`[DELETE ${requestId}] WARNING: Found ${orphanMessages.length} orphan messages, cleaning up...`);
+      await verifyClient
+        .from("messages")
+        .delete()
+        .eq("conversation_id", conversationId);
     }
 
     // Retornar 204 No Content con headers explícitos para Vercel
