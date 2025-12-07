@@ -27,7 +27,7 @@ export function useCreateConversation() {
         if (exists) {
           console.log(`[useCreateConversation] Conversation ${newConversation.id} already in cache, updating`);
           // Retornar nuevo array para forzar re-render
-          return [...old.map(conv => conv.id === newConversation.id ? newConversation : conv)];
+          return old.map(conv => conv.id === newConversation.id ? newConversation : conv);
         }
         console.log(`[useCreateConversation] Adding to cache: ${old.length} -> ${old.length + 1}`);
         // Ordenar por updated_at descendente y retornar nuevo array
@@ -92,37 +92,20 @@ export function useDeleteConversation() {
     },
     onSuccess: async (data, conversationId) => {
       console.log(`[useDeleteConversation] Successfully deleted conversation ${conversationId}`);
-      // NO hacer refetch inmediato - confiar en el optimistic update
-      // El refetch inmediato puede traer datos viejos de Supabase antes de que se propague el DELETE
-      // Solo limpiar queries de mensajes
+      // Forzar refetch inmediato para asegurar sincronización
+      await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+      // Asegurar que los mensajes también se limpien
       queryClient.removeQueries({ queryKey: ["messages", conversationId] });
+      // Limpiar cualquier rastro restante del cache
       queryClient.removeQueries({ 
         queryKey: ["messages", conversationId],
         exact: false 
       });
-      
-      // Hacer refetch después de un pequeño delay para dar tiempo a que Supabase propague el cambio
-      // Pero solo si no hay error
-      setTimeout(async () => {
-        console.log(`[useDeleteConversation] Delayed refetch after delete for ${conversationId}`);
-        const currentData = queryClient.getQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY);
-        const stillExists = currentData?.some(conv => conv.id === conversationId);
-        if (stillExists) {
-          console.warn(`[useDeleteConversation] Conversation ${conversationId} still in cache after delete, forcing refetch`);
-          await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
-        } else {
-          console.log(`[useDeleteConversation] Conversation ${conversationId} correctly removed from cache`);
-        }
-      }, 500); // 500ms delay para dar tiempo a Supabase
     },
     onSettled: async (data, error, conversationId) => {
       console.log(`[useDeleteConversation] onSettled for ${conversationId}, error: ${!!error}`);
-      // Solo hacer refetch si hubo error (para rollback)
-      // Si fue exitoso, el optimistic update ya removió la conversación
-      if (error) {
-        console.log(`[useDeleteConversation] Error occurred, refetching to sync state`);
-        await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
-      }
+      // Forzar refetch para asegurar que todo esté sincronizado
+      await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
       // Limpiar cualquier rastro restante
       queryClient.removeQueries({ queryKey: ["messages", conversationId] });
     },

@@ -66,10 +66,11 @@ export async function DELETE(
     }
 
     // Eliminar la conversación
-    const { error: deleteError } = await supabase
+    const { error: deleteError, data: deleteData } = await supabase
       .from("conversations")
       .delete()
-      .eq("id", conversationId);
+      .eq("id", conversationId)
+      .select(); // Select para verificar que se eliminó
 
     if (deleteError) {
       console.error(`[DELETE ${requestId}] Error deleting conversation:`, deleteError);
@@ -81,6 +82,21 @@ export async function DELETE(
 
     const duration = Date.now() - startTime;
     console.log(`[DELETE ${requestId}] Conversation ${conversationId} deleted successfully in ${duration}ms`);
+    console.log(`[DELETE ${requestId}] Delete result:`, deleteData);
+
+    // Verificar que la conversación fue eliminada consultando de nuevo
+    const { data: verifyData } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("id", conversationId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    
+    if (verifyData) {
+      console.warn(`[DELETE ${requestId}] WARNING: Conversation ${conversationId} still exists after delete!`);
+    } else {
+      console.log(`[DELETE ${requestId}] Verified: Conversation ${conversationId} successfully removed from database`);
+    }
 
     // Retornar 204 No Content con headers explícitos para Vercel
     return new NextResponse(null, { 
