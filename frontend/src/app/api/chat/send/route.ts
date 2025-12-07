@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
           }
 
           // 2. Insertar mensaje del usuario
-          const encryptedContent = encryptMessage(content);
+          const encryptedContent = await encryptMessage(content);
           const { data: userMsg, error: userMsgError } = await supabase
             .from("messages")
             .insert({
@@ -110,10 +110,12 @@ export async function POST(request: NextRequest) {
             .order("created_at", { ascending: true });
 
           // Desencriptar mensajes
-          const decryptedHistory = (history || []).map((msg: any) => ({
-            ...msg,
-            content: decryptMessage(msg.content),
-          }));
+          const decryptedHistory = await Promise.all(
+            (history || []).map(async (msg: any) => ({
+              ...msg,
+              content: await decryptMessage(msg.content),
+            }))
+          );
 
           const recentHistory = conversationSummary && decryptedHistory.length > 5
             ? decryptedHistory.slice(-5)
@@ -208,7 +210,7 @@ export async function POST(request: NextRequest) {
           }
 
           // 9. Insertar mensaje del asistente
-          const encryptedAssistantContent = encryptMessage(assistantContent);
+          const encryptedAssistantContent = await encryptMessage(assistantContent);
           const { data: assistantMsg, error: assistantMsgError } = await supabase
             .from("messages")
             .insert({

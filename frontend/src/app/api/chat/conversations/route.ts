@@ -26,12 +26,14 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Error fetching conversations:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
       return NextResponse.json(
-        { detail: "Error al obtener conversaciones" },
+        { detail: `Error al obtener conversaciones: ${error.message}`, error: error },
         { status: 500 }
       );
     }
 
+    console.log(`Found ${conversations?.length || 0} conversations for user ${user.id}`);
     return NextResponse.json(conversations || []);
   } catch (error: any) {
     console.error("Get conversations error:", error);

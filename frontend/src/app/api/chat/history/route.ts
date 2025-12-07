@@ -44,10 +44,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Desencriptar mensajes
-    const decryptedMessages = (messages || []).map((msg: any) => ({
-      ...msg,
-      content: decryptMessage(msg.content),
-    }));
+    const decryptedMessages = await Promise.all(
+      (messages || []).map(async (msg: any) => ({
+        ...msg,
+        content: await decryptMessage(msg.content),
+      }))
+    );
 
     return NextResponse.json(decryptedMessages);
   } catch (error: any) {
