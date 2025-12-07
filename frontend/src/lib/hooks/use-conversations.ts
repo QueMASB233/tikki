@@ -27,7 +27,7 @@ export function useCreateConversation() {
         if (exists) {
           console.log(`[useCreateConversation] Conversation ${newConversation.id} already in cache, updating`);
           // Retornar nuevo array para forzar re-render
-          return old.map(conv => conv.id === newConversation.id ? newConversation : conv);
+          return [...old.map(conv => conv.id === newConversation.id ? newConversation : conv)];
         }
         console.log(`[useCreateConversation] Adding to cache: ${old.length} -> ${old.length + 1}`);
         // Ordenar por updated_at descendente y retornar nuevo array
