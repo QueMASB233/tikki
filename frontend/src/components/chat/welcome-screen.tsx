@@ -61,6 +61,7 @@ export function WelcomeScreen({ userName, onSend }: WelcomeScreenProps) {
               className="max-h-[200px] min-h-[44px] w-full resize-none bg-transparent py-2 text-sm sm:text-base text-text placeholder:text-text-light focus:outline-none"
               rows={1}
               autoFocus
+              style={{ fontSize: '16px' }}
             />
             <button
               type="submit"

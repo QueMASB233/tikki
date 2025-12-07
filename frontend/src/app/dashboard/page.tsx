@@ -101,25 +101,33 @@ function DashboardContent() {
       }
     };
     loadData();
-  }, [initialized, user, welcomeMessage, currentConversationId]);
-
-  // Cargar mensajes cuando cambia la conversación activa
+  }, [initialized, user, welcomeMessage]);
+  
+  // Cargar mensajes cuando cambia la conversación activa (separado para mejor rendimiento)
   useEffect(() => {
-    if (!currentConversationId) {
-      setMessages([welcomeMessage]);
+    if (!currentConversationId || !initialized) {
+      if (!currentConversationId) {
+        setMessages([welcomeMessage]);
+      }
       return;
     }
+    
     const loadMessages = async () => {
       try {
         const history = await fetchMessages(currentConversationId);
-        setMessages(history.length > 0 ? history : [welcomeMessage]);
+        if (history.length > 0) {
+          setMessages(history);
+        } else {
+          setMessages([welcomeMessage]);
+        }
       } catch (error) {
         console.error("Failed to load messages", error);
         setMessages([welcomeMessage]);
       }
     };
+    
     loadMessages();
-  }, [currentConversationId, welcomeMessage]);
+  }, [currentConversationId, initialized, welcomeMessage]);
 
   const handleSend = useCallback(
     async (content: string) => {
