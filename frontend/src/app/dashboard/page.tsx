@@ -32,6 +32,11 @@ function DashboardContent() {
 
   // React Query hooks - DEBEN estar antes de cualquier return condicional
   const { data: conversations = [], isLoading: conversationsLoading, refetch: refetchConversations } = useConversations();
+  
+  // Debug: Log conversations changes
+  useEffect(() => {
+    console.log(`[DASHBOARD] Conversations updated: ${conversations.length} conversations`, conversations.map(c => c.id));
+  }, [conversations]);
   const { data: messages = [], isLoading: messagesLoading } = useMessages(currentConversationId);
   const deleteConversationMutation = useDeleteConversation();
   const renameConversationMutation = useRenameConversation();
