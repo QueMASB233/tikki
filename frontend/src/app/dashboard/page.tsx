@@ -409,3 +409,15 @@ function DashboardContent() {
   );
 }
 
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">Cargando...</div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
