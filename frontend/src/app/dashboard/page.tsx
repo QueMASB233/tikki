@@ -278,34 +278,16 @@ function DashboardContent() {
   };
 
   const handleNewConversation = async () => {
-    // Crear conversación optimista (actualizar UI inmediatamente)
-    const tempId = `temp-${Date.now()}`;
-    const tempConv = {
-      id: tempId,
-      title: "Nueva conversación",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    
-    // Actualizar UI inmediatamente
-    setCurrentConversationId(tempId);
-    setConversations((prev) => [tempConv, ...prev]);
-    setMessages([welcomeMessage]);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    
-    // Crear conversación en el backend
     try {
+      // Crear conversación en el backend primero
       const newConv = await createConversation();
-      // Reemplazar la conversación temporal con la real
+      // Actualizar UI con la conversación real
       setCurrentConversationId(newConv.id);
-      setConversations((prev) => 
-        prev.map(conv => conv.id === tempId ? newConv : conv)
-      );
+      setConversations((prev) => [newConv, ...prev]);
+      setMessages([welcomeMessage]);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
       console.error("Failed to create conversation", error);
-      // Revertir si falla
-      setCurrentConversationId(null);
-      setConversations((prev) => prev.filter(conv => conv.id !== tempId));
     }
   };
 

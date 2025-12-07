@@ -43,34 +43,35 @@ export async function POST(request: NextRequest) {
         const encoder = new TextEncoder();
 
         try {
-          // 1. Obtener o crear conversación
-          let finalConversationId = conversationId;
-          if (!finalConversationId) {
-            const title = content.length > 50 ? content.substring(0, 50) + "..." : content;
-            const { data: newConv, error: convError } = await supabase
-              .from("conversations")
-              .insert({
-                user_id: user.id,
-                title,
-              })
-              .select()
-              .single();
-
-            if (convError || !newConv) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "No se pudo crear la conversación" })}\n\n`));
-              controller.close();
-              return;
-            }
-
-            finalConversationId = newConv.id;
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ conversation_id: finalConversationId })}\n\n`));
-          } else {
-            // Actualizar timestamp
-            await supabase
-              .from("conversations")
-              .update({ updated_at: new Date().toISOString() })
-              .eq("id", finalConversationId);
+          // Validar que conversationId sea un UUID válido
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (!conversationId || !uuidRegex.test(conversationId)) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "ID de conversación inválido. Por favor, crea una nueva conversación." })}\n\n`));
+            controller.close();
+            return;
           }
+
+          // Verificar que la conversación existe y pertenece al usuario
+          const { data: existingConv, error: convCheckError } = await supabase
+            .from("conversations")
+            .select("id, user_id")
+            .eq("id", conversationId)
+            .eq("user_id", user.id)
+            .single();
+
+          if (convCheckError || !existingConv) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Conversación no encontrada o no autorizada" })}\n\n`));
+            controller.close();
+            return;
+          }
+
+          // Actualizar timestamp de la conversación
+          await supabase
+            .from("conversations")
+            .update({ updated_at: new Date().toISOString() })
+            .eq("id", conversationId);
+
+          const finalConversationId = conversationId;
 
           // 2. Insertar mensaje del usuario
           const encryptedContent = encryptMessage(content);
