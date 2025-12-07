@@ -336,7 +336,7 @@ function DashboardContent() {
         .then(setConversations)
         .catch((err) => console.error("Error fetching conversations:", err));
     });
-  };;
+  };
 
   const handleRenameConversation = async (conversationId: string, newTitle: string) => {
     // Guardar estado anterior para rollback

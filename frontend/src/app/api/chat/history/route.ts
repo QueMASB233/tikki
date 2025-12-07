@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, getSupabaseClientWithAuth } from "@/lib/api/auth-helper";
 import { decryptMessage } from "@/lib/api/encryption";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser(request);

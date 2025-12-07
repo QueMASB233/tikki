@@ -5,6 +5,8 @@ import { chatCompletionStream } from "@/lib/api/deepseek";
 import { buildSystemPrompt, parseStructuredResponse } from "@/lib/api/prompt";
 import { MemoryManager } from "@/lib/api/memory";
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser(request);

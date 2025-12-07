@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = 'force-dynamic';
+
 // Las variables de entorno se cargan en tiempo de ejecución
 // No inicializamos el cliente aquí para evitar errores en tiempo de build
 function getSupabaseAdmin() {
