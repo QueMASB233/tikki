@@ -1,51 +1,43 @@
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
 
 // Inicializar fernet de forma síncrona al cargar el módulo
-let FernetClass: any = null;
-let fernet: any = null;
+let fernetModule: any = null;
+let token: any = null;
 
 // Función para inicializar fernet una sola vez
 function initializeFernet() {
-  if (fernet) {
-    return fernet;
+  if (token) {
+    return token;
   }
 
   try {
     // Importación síncrona usando require (funciona mejor en Node.js/Next.js server)
-    const fernetModule = require('fernet');
+    fernetModule = require('fernet');
     
-    // El paquete fernet exporta Fernet directamente o como default
-    FernetClass = fernetModule.Fernet || fernetModule.default?.Fernet || fernetModule.default;
-    
-    if (!FernetClass) {
-      throw new Error('Fernet class not found in module');
-    }
-
-    // Verificar que generateKey existe
-    if (!FernetClass.generateKey || typeof FernetClass.generateKey !== 'function') {
-      throw new Error('Fernet.generateKey is not a function. Fernet structure: ' + JSON.stringify(Object.keys(FernetClass)));
+    if (!fernetModule || !fernetModule.Secret || !fernetModule.Token) {
+      throw new Error('Fernet module structure is incorrect. Available keys: ' + JSON.stringify(Object.keys(fernetModule || {})));
     }
     
-    // Inicializar fernet
+    // Crear Secret con la clave de encriptación
     if (!ENCRYPTION_KEY) {
-      console.warn('ENCRYPTION_KEY not found. Using a temporary key (data will be unreadable after restart).');
-      const tempKey = FernetClass.generateKey();
-      fernet = new FernetClass(tempKey);
-    } else {
-      try {
-        fernet = new FernetClass(ENCRYPTION_KEY);
-      } catch (error) {
-        console.error('Error initializing Fernet with provided key:', error);
-        const tempKey = FernetClass.generateKey();
-        fernet = new FernetClass(tempKey);
-      }
+      console.warn('ENCRYPTION_KEY not found. Encryption will not work properly.');
+      throw new Error('ENCRYPTION_KEY is required');
+    }
+    
+    try {
+      const secret = new fernetModule.Secret(ENCRYPTION_KEY);
+      // Crear Token con ttl=0 (sin expiración)
+      token = new fernetModule.Token({ secret: secret, ttl: 0 });
+    } catch (error) {
+      console.error('Error initializing Fernet Token with provided key:', error);
+      throw error;
     }
   } catch (error) {
     console.error('Error initializing fernet:', error);
     throw error;
   }
   
-  return fernet;
+  return token;
 }
 
 // Inicializar al cargar el módulo
@@ -55,19 +47,19 @@ try {
   console.error('Failed to initialize fernet on module load:', error);
 }
 
-function getFernet() {
-  if (!fernet) {
+function getToken() {
+  if (!token) {
     return initializeFernet();
   }
-  return fernet;
+  return token;
 }
 
 export function encryptMessage(message: string): string {
   if (!message) return '';
   
   try {
-    const f = getFernet();
-    return f.encode(message);
+    const t = getToken();
+    return t.encode(message);
   } catch (error) {
     console.error('Error encrypting message:', error);
     return message; // Fallback
@@ -78,10 +70,11 @@ export function decryptMessage(encryptedMessage: string): string {
   if (!encryptedMessage) return '';
   
   try {
-    const f = getFernet();
-    return f.decode(encryptedMessage);
+    const t = getToken();
+    return t.decode(encryptedMessage);
   } catch (error) {
     // Asumir que no estaba encriptado (migración suave)
+    console.warn('Error decrypting message, returning as-is:', error);
     return encryptedMessage;
   }
 }
