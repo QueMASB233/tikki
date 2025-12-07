@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
@@ -32,9 +32,8 @@ import { TransformationFlash } from "@/components/animations/transformation-flas
 import { useSound } from "@/lib/sounds/sound-manager";
 import { appConfig } from "@/lib/config";
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, loading, logout, setUser } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
