@@ -1,0 +1,59 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { getCurrentUser } from "@/lib/api/auth-helper";
+import { decryptMessage } from "@/lib/api/encryption";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { detail: "No autorizado" },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const conversationId = searchParams.get("conversation_id");
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    let query = supabase
+      .from("messages")
+      .select("*")
+      .eq("user_id", user.id);
+
+    if (conversationId) {
+      query = query.eq("conversation_id", conversationId);
+    } else {
+      query = query.is("conversation_id", null);
+    }
+
+    const { data: messages, error } = await query.order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching messages:", error);
+      return NextResponse.json(
+        { detail: "Error al obtener mensajes" },
+        { status: 500 }
+      );
+    }
+
+    // Desencriptar mensajes
+    const decryptedMessages = (messages || []).map((msg: any) => ({
+      ...msg,
+      content: decryptMessage(msg.content),
+    }));
+
+    return NextResponse.json(decryptedMessages);
+  } catch (error: any) {
+    console.error("Get history error:", error);
+    return NextResponse.json(
+      { detail: error.message || "Error al obtener historial" },
+      { status: 500 }
+    );
+  }
+}
+

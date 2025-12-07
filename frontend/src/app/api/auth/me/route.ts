@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
     // Derivar nombre del email si no existe
     let full_name = userProfile.full_name;
     if (!full_name && userProfile.email) {
-      full_name = userProfile.email.split("@")[0].capitalize();
+      const emailPart = userProfile.email.split("@")[0];
+      full_name = emailPart.charAt(0).toUpperCase() + emailPart.slice(1);
     }
 
     return NextResponse.json({
