@@ -1,52 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables");
-  }
-  
-  return createClient(supabaseUrl, supabaseAnonKey);
-}
-
-async function getCurrentUser(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return null;
-  }
-
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return null;
-  }
-
-  const token = authHeader.replace("Bearer ", "");
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  });
-
-  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !authUser) {
-    return null;
-  }
-
-  const { data: userProfile } = await supabase
-    .from("users")
-    .select("*")
-    .eq("auth_user_id", authUser.id)
-    .single();
-
-  return userProfile;
-}
+import { getCurrentUser, getSupabaseClientWithAuth } from "@/lib/api/auth-helper";
 
 export async function GET(request: NextRequest) {
   try {
@@ -115,7 +68,13 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClientWithAuth(request);
+    if (!supabase) {
+      return NextResponse.json(
+        { detail: "Error de autenticación" },
+        { status: 401 }
+      );
+    }
     const { data: updatedUser, error } = await supabase
       .from("users")
       .update(updateData)

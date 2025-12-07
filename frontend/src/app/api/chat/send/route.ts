@@ -1,21 +1,9 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getCurrentUser } from "@/lib/api/auth-helper";
+import { getCurrentUser, getSupabaseClientWithAuth } from "@/lib/api/auth-helper";
 import { encryptMessage, decryptMessage } from "@/lib/api/encryption";
 import { chatCompletionStream } from "@/lib/api/deepseek";
 import { buildSystemPrompt, parseStructuredResponse } from "@/lib/api/prompt";
 import { MemoryManager } from "@/lib/api/memory";
-
-function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables");
-  }
-  
-  return createClient(supabaseUrl, supabaseAnonKey);
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +26,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClientWithAuth(request);
+    if (!supabase) {
+      return new Response(
+        JSON.stringify({ error: "Error de autenticación" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
     const memory = new MemoryManager(supabase);
 
     // Crear stream

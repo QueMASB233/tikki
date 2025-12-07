@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getCurrentUser } from "@/lib/api/auth-helper";
+import { getCurrentUser, getSupabaseClientWithAuth } from "@/lib/api/auth-helper";
 import { decryptMessage } from "@/lib/api/encryption";
-
-function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables");
-  }
-  
-  return createClient(supabaseUrl, supabaseAnonKey);
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,7 +15,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const conversationId = searchParams.get("conversation_id");
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClientWithAuth(request);
+    if (!supabase) {
+      return NextResponse.json(
+        { detail: "Error de autenticación" },
+        { status: 401 }
+      );
+    }
     let query = supabase
       .from("messages")
       .select("*")

@@ -1,17 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getCurrentUser } from "@/lib/api/auth-helper";
-
-function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables");
-  }
-  
-  return createClient(supabaseUrl, supabaseAnonKey);
-}
+import { getCurrentUser, getSupabaseClientWithAuth } from "@/lib/api/auth-helper";
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +11,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClientWithAuth(request);
+    if (!supabase) {
+      return NextResponse.json(
+        { detail: "Error de autenticación" },
+        { status: 401 }
+      );
+    }
     const { data: conversations, error } = await supabase
       .from("conversations")
       .select("*")
@@ -61,7 +55,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const title = body.title || "Nueva conversación";
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClientWithAuth(request);
+    if (!supabase) {
+      return NextResponse.json(
+        { detail: "Error de autenticación" },
+        { status: 401 }
+      );
+    }
     const { data: conversation, error } = await supabase
       .from("conversations")
       .insert({
