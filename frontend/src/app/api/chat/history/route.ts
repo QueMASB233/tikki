@@ -24,6 +24,17 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+    
+    // Validar que conversationId sea un UUID válido si se proporciona
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (conversationId && !uuidRegex.test(conversationId)) {
+      console.error("Invalid UUID format:", conversationId);
+      return NextResponse.json(
+        { detail: "ID de conversación inválido" },
+        { status: 400 }
+      );
+    }
+    
     let query = supabase
       .from("messages")
       .select("*")

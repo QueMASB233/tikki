@@ -20,11 +20,14 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+    // Usar RLS para filtrar automáticamente por usuario
+    // La política RLS ya filtra por auth.uid(), pero también verificamos user_id para seguridad adicional
     const { data: conversations, error } = await supabase
       .from("conversations")
       .select("*")
       .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
+      .order("updated_at", { ascending: false })
+      .limit(100); // Limitar a 100 conversaciones para mejor rendimiento
 
     if (error) {
       console.error("Error fetching conversations:", error);

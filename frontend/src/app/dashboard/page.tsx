@@ -175,9 +175,24 @@ function DashboardContent() {
       setStreamingMessageId(tempAssistantId);
 
       try {
+        // Si no hay conversación, crear una primero (no usar ID temporal)
+        let finalConversationId = conversationId;
+        if (!finalConversationId) {
+          try {
+            const newConv = await createConversation(content.length > 50 ? content.substring(0, 50) + "..." : content);
+            finalConversationId = newConv.id;
+            setCurrentConversationId(newConv.id);
+            // Actualizar sidebar inmediatamente
+            setConversations((prev) => [newConv, ...prev]);
+          } catch (error) {
+            console.error("Failed to create conversation:", error);
+            throw error;
+          }
+        }
+        
         await sendMessageStream(
           content,
-          conversationId,
+          finalConversationId,
           // onChunk: actualizar el mensaje temporal con cada chunk (sin scroll)
           (chunk: string) => {
             setMessages((prev) =>
@@ -198,55 +213,34 @@ function DashboardContent() {
             // Resetear modo transformación después de la respuesta
             resetTransformationAfterResponse();
             
-            // Si se creó una nueva conversación, actualizar el estado
-            if (newConversationId && newConversationId !== conversationId) {
-              setCurrentConversationId(newConversationId);
-              // Actualizar lista de conversaciones para incluir la nueva
-              fetchConversations()
-                .then((convs) => {
-                  setConversations(convs);
-                  // Reemplazar mensaje temporal con el real
-                  if (messageId) {
-                    fetchMessages(newConversationId)
-                      .then((msgs) => {
-                        const realMessage = msgs.find((m) => m.id === messageId);
-                        if (realMessage) {
-                          setMessages((prev) =>
-                            prev.map((msg) =>
-                              msg.id === tempAssistantId ? realMessage : msg
-                            )
-                          );
-                        }
-                      })
-                      .catch((err) => {
-                        console.error("Error fetching messages after stream:", err);
-                      });
-                  }
-                })
-                .catch((err) => console.error("Error fetching conversations:", err));
-            } else {
-              // Si no hay nueva conversación, solo actualizar el mensaje
-              if (messageId && conversationId) {
-                fetchMessages(conversationId)
-                  .then((msgs) => {
-                    const realMessage = msgs.find((m) => m.id === messageId);
-                    if (realMessage) {
-                      setMessages((prev) =>
-                        prev.map((msg) =>
-                          msg.id === tempAssistantId ? realMessage : msg
-                        )
-                      );
-                    }
-                  })
-                  .catch((err) => {
-                    console.error("Error fetching messages after stream:", err);
-                  });
-              }
-              // Actualizar lista de conversaciones para actualizar updated_at
-              fetchConversations()
-                .then(setConversations)
-                .catch((err) => console.error("Error fetching conversations:", err));
-            }
+            // Actualizar lista de conversaciones para reflejar cambios
+            fetchConversations()
+              .then((convs) => {
+                setConversations(convs);
+                // Si se creó una nueva conversación, actualizar el ID actual
+                if (newConversationId && newConversationId !== finalConversationId) {
+                  setCurrentConversationId(newConversationId);
+                }
+                // Reemplazar mensaje temporal con el real
+                const targetConvId = newConversationId || finalConversationId;
+                if (messageId && targetConvId) {
+                  fetchMessages(targetConvId)
+                    .then((msgs) => {
+                      const realMessage = msgs.find((m) => m.id === messageId);
+                      if (realMessage) {
+                        setMessages((prev) =>
+                          prev.map((msg) =>
+                            msg.id === tempAssistantId ? realMessage : msg
+                          )
+                        );
+                      }
+                    })
+                    .catch((err) => {
+                      console.error("Error fetching messages after stream:", err);
+                    });
+                }
+              })
+              .catch((err) => console.error("Error fetching conversations:", err));
           },
           // onError
           (error: string) => {

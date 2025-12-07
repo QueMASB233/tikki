@@ -5,6 +5,7 @@ import { Conversation } from "@/lib/api-client";
 import { Trash2, PanelLeftClose, PanelLeftOpen, MessageSquare, Plus } from "lucide-react";
 import clsx from "clsx";
 import { AnimatedTitle } from "./animated-title";
+import { SwipeableConversation } from "./swipeable-conversation";
 
 interface ChatSidebarProps {
   conversations: Conversation[];
@@ -122,75 +123,22 @@ export function ChatSidebar({
           )
         ) : (
           conversations.map((conv, index) => (
-            <div
+            <SwipeableConversation
               key={conv.id}
-              className={clsx(
-                "group relative flex cursor-pointer items-center rounded-xl transition-all duration-200 animate-fade-in",
-                currentConversationId === conv.id
-                  ? "bg-primary text-white border border-primary"
-                  : "bg-white border border-transparent hover:bg-gray-50 hover:border-border",
-                isCollapsed ? "justify-center p-2" : "p-3"
-              )}
-              style={{ animationDelay: `${index * 50}ms` }}
-              onClick={() => onSelectConversation(conv.id)}
-            >
-              {isCollapsed ? (
-                <MessageSquare size={18} className={currentConversationId === conv.id ? "text-white" : "text-text-light"} />
-              ) : (
-                <div className="min-w-0 flex-1">
-                  {editingId === conv.id ? (
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      onBlur={handleFinishRename}
-                      onKeyDown={handleKeyDown}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-full rounded border border-primary px-1 py-0.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  ) : (
-                    <AnimatedTitle
-                      text={conv.title || "Sin título"}
-                      className={clsx(
-                        "line-clamp-2 font-semibold",
-                        currentConversationId === conv.id ? "text-white" : "text-text"
-                      )}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        handleStartRename(conv);
-                      }}
-                      title={conv.title || "Sin título"}
-                    />
-                  )}
-                  <p className={clsx(
-                    "mt-1 text-[10px] font-medium",
-                    currentConversationId === conv.id ? "text-white/80" : "text-text-light"
-                  )}>
-                {new Date(conv.updated_at).toLocaleDateString("es-ES", {
-                  day: "numeric",
-                  month: "short",
-                })}
-              </p>
-                </div>
-              )}
-
-              {!isCollapsed && editingId !== conv.id && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteConversation(conv.id);
-                  }}
-                  className={clsx(
-                    "absolute right-2 top-1/2 -translate-y-1/2 opacity-0 transition-all hover:scale-110 group-hover:opacity-100 rounded p-1",
-                    currentConversationId === conv.id ? "hover:bg-white/20 text-white" : "hover:bg-red-100 text-red-500"
-                  )}
-                  title="Eliminar conversación"
-                >
-                  <Trash2 size={14} />
-            </button>
-              )}
-            </div>
+              conv={conv}
+              currentConversationId={currentConversationId}
+              isCollapsed={isCollapsed}
+              editingId={editingId}
+              editTitle={editTitle}
+              inputRef={inputRef}
+              onSelect={onSelectConversation}
+              onStartRename={handleStartRename}
+              onFinishRename={handleFinishRename}
+              onKeyDown={handleKeyDown}
+              onDelete={onDeleteConversation}
+              index={index}
+              onEditTitleChange={setEditTitle}
+            />
           ))
         )}
       </div>
