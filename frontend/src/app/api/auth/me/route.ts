@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+  
+  return { supabaseUrl, supabaseAnonKey };
+}
 
 async function getCurrentUser(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -11,6 +19,7 @@ async function getCurrentUser(request: NextRequest) {
   }
 
   const token = authHeader.replace("Bearer ", "");
+  const { supabaseUrl, supabaseAnonKey } = getSupabaseClient();
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
@@ -100,6 +109,7 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
+    const { supabaseUrl, supabaseAnonKey } = getSupabaseClient();
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { data: updatedUser, error } = await supabase
       .from("users")

@@ -2,8 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getCurrentUser } from "@/lib/api/auth-helper";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+  
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
 
 export async function DELETE(
   request: NextRequest,
@@ -19,7 +27,7 @@ export async function DELETE(
     }
 
     const conversationId = params.id;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = getSupabaseClient();
 
     // Verificar que la conversación pertenezca al usuario
     const { data: conversation } = await supabase
@@ -82,7 +90,7 @@ export async function PATCH(
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = getSupabaseClient();
 
     // Verificar que la conversación pertenezca al usuario
     const { data: conversation } = await supabase
