@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Conversation } from "@/lib/api-client";
 import { Trash2, PanelLeftClose, PanelLeftOpen, MessageSquare, Plus } from "lucide-react";
 import clsx from "clsx";
+import { AnimatedTitle } from "./animated-title";
 
 interface ChatSidebarProps {
   conversations: Conversation[];
@@ -120,16 +121,17 @@ export function ChatSidebar({
           </p>
           )
         ) : (
-          conversations.map((conv) => (
+          conversations.map((conv, index) => (
             <div
               key={conv.id}
               className={clsx(
-                "group relative flex cursor-pointer items-center rounded-xl transition-all duration-200",
+                "group relative flex cursor-pointer items-center rounded-xl transition-all duration-200 animate-fade-in",
                 currentConversationId === conv.id
                   ? "bg-primary text-white border border-primary"
                   : "bg-white border border-transparent hover:bg-gray-50 hover:border-border",
                 isCollapsed ? "justify-center p-2" : "p-3"
               )}
+              style={{ animationDelay: `${index * 50}ms` }}
               onClick={() => onSelectConversation(conv.id)}
             >
               {isCollapsed ? (
@@ -148,7 +150,8 @@ export function ChatSidebar({
                       className="w-full rounded border border-primary px-1 py-0.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   ) : (
-                    <p
+                    <AnimatedTitle
+                      text={conv.title || "Sin título"}
                       className={clsx(
                         "line-clamp-2 font-semibold",
                         currentConversationId === conv.id ? "text-white" : "text-text"
@@ -158,9 +161,7 @@ export function ChatSidebar({
                         handleStartRename(conv);
                       }}
                       title={conv.title || "Sin título"}
-                    >
-                {conv.title || "Sin título"}
-              </p>
+                    />
                   )}
                   <p className={clsx(
                     "mt-1 text-[10px] font-medium",

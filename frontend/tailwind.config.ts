@@ -32,7 +32,8 @@ const config: Config = {
       },
       animation: {
         "ladybug-shine": "shine 3s infinite",
-        "ladybug-pulse": "pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite"
+        "ladybug-pulse": "pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "fade-in": "fadeIn 0.3s ease-in-out forwards"
       },
       keyframes: {
         shine: {
@@ -42,6 +43,10 @@ const config: Config = {
         "pulse-glow": {
           "0%, 100%": { boxShadow: "0 0 20px rgba(233, 30, 99, 0.4)" },
           "50%": { boxShadow: "0 0 40px rgba(233, 30, 99, 0.8)" }
+        },
+        fadeIn: {
+          "0%": { opacity: "0", transform: "translateY(-10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" }
         }
       }
     }

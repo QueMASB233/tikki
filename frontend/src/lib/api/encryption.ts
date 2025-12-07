@@ -59,9 +59,18 @@ export function encryptMessage(message: string): string {
   
   try {
     const t = getToken();
-    return t.encode(message);
+    // Crear un nuevo token para cada mensaje para evitar problemas con mensajes largos
+    const secret = new fernetModule.Secret(ENCRYPTION_KEY);
+    const token = new fernetModule.Token({ secret: secret, ttl: 0 });
+    return token.encode(message);
   } catch (error) {
     console.error('Error encrypting message:', error);
+    console.error('Message length:', message.length);
+    // Si el mensaje es demasiado largo, intentar dividirlo o devolver sin encriptar
+    if (message.length > 100000) {
+      console.warn('Message too long for encryption, storing without encryption');
+      return message; // Fallback para mensajes muy largos
+    }
     return message; // Fallback
   }
 }
@@ -70,8 +79,10 @@ export function decryptMessage(encryptedMessage: string): string {
   if (!encryptedMessage) return '';
   
   try {
-    const t = getToken();
-    return t.decode(encryptedMessage);
+    // Crear un nuevo token para cada mensaje
+    const secret = new fernetModule.Secret(ENCRYPTION_KEY);
+    const token = new fernetModule.Token({ secret: secret, ttl: 0 });
+    return token.decode(encryptedMessage);
   } catch (error) {
     // Asumir que no estaba encriptado (migración suave)
     console.warn('Error decrypting message, returning as-is:', error);
