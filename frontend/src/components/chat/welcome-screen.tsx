@@ -12,8 +12,11 @@ export function WelcomeScreen({ userName, onSend }: WelcomeScreenProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevenir cualquier navegación
     if (value.trim()) {
-      onSend(value.trim());
+      const message = value.trim();
+      setValue(""); // Limpiar el input inmediatamente
+      onSend(message);
     }
   };
 
@@ -85,7 +88,11 @@ export function WelcomeScreen({ userName, onSend }: WelcomeScreenProps) {
               ].map((suggestion) => (
                 <button
                   key={suggestion.text}
-                  onClick={() => onSend(suggestion.text)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation(); // Prevenir cualquier navegación
+                    onSend(suggestion.text);
+                  }}
                   className="flex-shrink-0 rounded-lg border border-border bg-white px-4 py-2 text-xs sm:text-sm text-text font-medium transition-all hover:border-primary hover:text-primary min-h-[44px] whitespace-nowrap"
                 >
                   <span className="mr-2">{suggestion.emoji}</span>

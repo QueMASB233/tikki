@@ -17,28 +17,34 @@ export function ChatMessageList({ messages, loading, streamingMessageId, scrollT
   const lastMessageCount = useRef<number>(0);
   const lastUserMessageId = useRef<string | null>(null);
 
-  // Detectar cuando se agrega un nuevo mensaje del usuario y hacer scroll
+  // Scroll automático cuando cambian los mensajes o hay streaming
   useEffect(() => {
-    if (messages.length === 0) return;
+    if (!containerRef.current) return;
 
+    const container = containerRef.current;
     const lastMessage = messages[messages.length - 1];
     
-    // Si el último mensaje es del usuario y es diferente al anterior, hacer scroll
-    if (lastMessage.role === "user" && lastMessage.id !== lastUserMessageId.current) {
-      lastUserMessageId.current = lastMessage.id;
+    // Detectar si hay un nuevo mensaje o si el contenido de un mensaje cambió (streaming)
+    const hasNewMessage = messages.length !== lastMessageCount.current;
+    const isStreaming = streamingMessageId && lastMessage?.id === streamingMessageId;
+    
+    if (hasNewMessage || isStreaming) {
+      // Calcular si el usuario está cerca del final (dentro de 100px)
+      const isNearBottom = 
+        container.scrollHeight - container.scrollTop - container.clientHeight < 100;
       
-      // Scroll inmediato cuando se envía un mensaje del usuario
-      requestAnimationFrame(() => {
+      // Solo hacer scroll si está cerca del final o es un nuevo mensaje del usuario
+      if (isNearBottom || lastMessage?.role === "user") {
         requestAnimationFrame(() => {
-          if (bottomRef.current && containerRef.current) {
-            containerRef.current.scrollTop = containerRef.current.scrollHeight;
+          if (container && bottomRef.current) {
+            container.scrollTop = container.scrollHeight;
           }
         });
-      });
+      }
     }
 
     lastMessageCount.current = messages.length;
-  }, [messages]);
+  }, [messages, streamingMessageId]);
 
   // Scroll cuando se solicita explícitamente
   useEffect(() => {
