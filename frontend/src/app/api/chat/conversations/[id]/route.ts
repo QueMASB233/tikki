@@ -81,8 +81,7 @@ export async function DELETE(
       .from("messages")
       .delete()
       .eq("conversation_id", conversationId)
-      .select("*", { count: 'exact', head: true })
-      .limit(0); // Solo contar, no devolver datos
+      .select("*", { count: 'exact', head: true });
 
     if (messagesError) {
       console.error(`[DELETE ${requestId}] Error deleting messages:`, messagesError);
