@@ -331,6 +331,9 @@ CREATE POLICY "Users can view own messages" ON public.messages
 CREATE POLICY "Users can create own messages" ON public.messages
     FOR INSERT WITH CHECK (auth.uid() = (SELECT auth_user_id FROM public.users WHERE id = user_id));
 
+CREATE POLICY "Users can delete own messages" ON public.messages
+    FOR DELETE USING (auth.uid() = (SELECT auth_user_id FROM public.users WHERE id = user_id));
+
 CREATE POLICY "Users can view own semantic memory" ON public.semantic_memory
     FOR SELECT USING (auth.uid() = (SELECT auth_user_id FROM public.users WHERE id = user_id));
 
