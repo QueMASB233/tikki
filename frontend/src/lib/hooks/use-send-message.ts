@@ -36,14 +36,17 @@ export function useSendMessage() {
           const exists = old.some(conv => conv.id === newConv.id);
           if (exists) {
             console.log(`[useSendMessage] Conversation ${finalConversationId} already in cache, updating`);
-            return old.map(conv => conv.id === newConv.id ? newConv : conv);
+            // Retornar nuevo array para forzar re-render
+            return [...old.map(conv => conv.id === newConv.id ? newConv : conv)];
           }
           console.log(`[useSendMessage] Adding new conversation to cache: ${old.length} -> ${old.length + 1}`);
           // Agregar al inicio y ordenar por updated_at descendente
           const updated = [newConv, ...old].sort((a, b) => 
             new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
           );
-          return updated;
+          console.log(`[useSendMessage] Updated conversation IDs: ${updated.map(c => c.id).join(', ')}`);
+          // Retornar nuevo array para forzar re-render
+          return [...updated];
         });
         
         // Forzar refetch inmediato para asegurar sincronización
