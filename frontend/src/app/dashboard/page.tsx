@@ -205,26 +205,21 @@ function DashboardContent() {
             // NO hacer scroll durante el streaming
           },
           // onComplete: reemplazar el mensaje temporal con el real
-          (messageId: string, newConversationId: string) => {
-            console.log("Stream completed:", { messageId, newConversationId, conversationId });
+          (messageId: string, completedConversationId: string) => {
+            console.log("Stream completed:", { messageId, completedConversationId, finalConversationId });
             setStreamingMessageId(null);
             setChatLoading(false);
             
             // Resetear modo transformación después de la respuesta
             resetTransformationAfterResponse();
             
-            // Actualizar lista de conversaciones para reflejar cambios
+            // Actualizar lista de conversaciones para reflejar cambios (updated_at)
             fetchConversations()
               .then((convs) => {
                 setConversations(convs);
-                // Si se creó una nueva conversación, actualizar el ID actual
-                if (newConversationId && newConversationId !== finalConversationId) {
-                  setCurrentConversationId(newConversationId);
-                }
                 // Reemplazar mensaje temporal con el real
-                const targetConvId = newConversationId || finalConversationId;
-                if (messageId && targetConvId) {
-                  fetchMessages(targetConvId)
+                if (messageId && finalConversationId) {
+                  fetchMessages(finalConversationId)
                     .then((msgs) => {
                       const realMessage = msgs.find((m) => m.id === messageId);
                       if (realMessage) {
