@@ -198,36 +198,55 @@ function DashboardContent() {
             // Resetear modo transformación después de la respuesta
             resetTransformationAfterResponse();
             
+            // Si se creó una nueva conversación, actualizar el estado
             if (newConversationId && newConversationId !== conversationId) {
-              conversationId = newConversationId;
               setCurrentConversationId(newConversationId);
-            }
-            
-            // Reemplazar mensaje temporal con el real si tenemos messageId
-            if (messageId && (conversationId || newConversationId)) {
-              fetchMessages(conversationId || newConversationId)
-                .then((msgs) => {
-                  const realMessage = msgs.find((m) => m.id === messageId);
-                  if (realMessage) {
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === tempAssistantId ? realMessage : msg
-                      )
-                    );
-                  } else {
-                    // Si no encontramos el mensaje, mantener el temporal pero marcarlo como completo
-                    console.warn("Could not find message with id:", messageId);
+              // Actualizar lista de conversaciones para incluir la nueva
+              fetchConversations()
+                .then((convs) => {
+                  setConversations(convs);
+                  // Reemplazar mensaje temporal con el real
+                  if (messageId) {
+                    fetchMessages(newConversationId)
+                      .then((msgs) => {
+                        const realMessage = msgs.find((m) => m.id === messageId);
+                        if (realMessage) {
+                          setMessages((prev) =>
+                            prev.map((msg) =>
+                              msg.id === tempAssistantId ? realMessage : msg
+                            )
+                          );
+                        }
+                      })
+                      .catch((err) => {
+                        console.error("Error fetching messages after stream:", err);
+                      });
                   }
                 })
-                .catch((err) => {
-                  console.error("Error fetching messages after stream:", err);
-                });
+                .catch((err) => console.error("Error fetching conversations:", err));
+            } else {
+              // Si no hay nueva conversación, solo actualizar el mensaje
+              if (messageId && conversationId) {
+                fetchMessages(conversationId)
+                  .then((msgs) => {
+                    const realMessage = msgs.find((m) => m.id === messageId);
+                    if (realMessage) {
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === tempAssistantId ? realMessage : msg
+                        )
+                      );
+                    }
+                  })
+                  .catch((err) => {
+                    console.error("Error fetching messages after stream:", err);
+                  });
+              }
+              // Actualizar lista de conversaciones para actualizar updated_at
+              fetchConversations()
+                .then(setConversations)
+                .catch((err) => console.error("Error fetching conversations:", err));
             }
-            
-            // Actualizar lista de conversaciones
-            fetchConversations()
-              .then(setConversations)
-              .catch((err) => console.error("Error fetching conversations:", err));
           },
           // onError
           (error: string) => {
@@ -317,29 +336,7 @@ function DashboardContent() {
         .then(setConversations)
         .catch((err) => console.error("Error fetching conversations:", err));
     });
-  };
-    const previousMessages = [...messages];
-
-    // Actualización optimista
-    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
-    
-    if (currentConversationId === conversationId) {
-      setCurrentConversationId(null);
-      setMessages([welcomeMessage]);
-    }
-
-    try {
-      await deleteConversation(conversationId);
-    } catch (error) {
-      console.error("Failed to delete conversation", error);
-      // Rollback en caso de error
-      setConversations(previousConversations);
-      if (previousCurrentId === conversationId) {
-        setCurrentConversationId(previousCurrentId);
-        setMessages(previousMessages);
-      }
-    }
-  };
+  };;
 
   const handleRenameConversation = async (conversationId: string, newTitle: string) => {
     // Guardar estado anterior para rollback
