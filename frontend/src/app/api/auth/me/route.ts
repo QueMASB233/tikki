@@ -9,7 +9,7 @@ function getSupabaseClient() {
     throw new Error("Missing Supabase environment variables");
   }
   
-  return { supabaseUrl, supabaseAnonKey };
+  return createClient(supabaseUrl, supabaseAnonKey);
 }
 
 async function getCurrentUser(request: NextRequest) {
@@ -109,8 +109,7 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    const { supabaseUrl, supabaseAnonKey } = getSupabaseClient();
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = getSupabaseClient();
     const { data: updatedUser, error } = await supabase
       .from("users")
       .update(updateData)

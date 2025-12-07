@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = getSupabaseClient();
     const memory = new MemoryManager(supabase);
 
     // Crear stream
