@@ -125,9 +125,105 @@ uvicorn app.main:app --reload --port 8000 --reload-exclude "*.venv/*" --reload-e
   - `dev`, `build`, `start`, `lint`.
 - `backend/pyproject.toml`: instala dependencias con `pip install -e .` o usa `uv pip install -r`.
 
+## Funcionalidades Avanzadas
+
+### 🎵 Sistema de Sonidos
+
+El proyecto incluye un sistema de efectos de sonido "cute" generados sintéticamente usando Web Audio API:
+
+- **Sonido al enviar mensaje**: Sonido suave tipo "pop" cuando el usuario envía un mensaje
+- **Sonido al recibir respuesta**: Sonido tipo "sparkle" cuando llega una respuesta del bot
+- **Sonido de transformación**: Sonido brillante cuando se activa el modo transformación
+
+**Configuración**: Edita `frontend/src/lib/config.ts`:
+- `enableSounds`: Habilita/deshabilita los sonidos (default: `true`)
+- `soundVolume`: Volumen de los efectos (0.0 a 1.0, default: `0.3`)
+
+**Uso en componentes**:
+```typescript
+import { useSound } from "@/lib/sounds/sound-manager";
+
+const { playSend, playReceive, playTransformation } = useSound();
+playSend(); // Reproduce sonido de envío
+```
+
+### ✨ Animaciones Mágicas
+
+Animaciones sutiles y de bajo costo visual para mejorar la experiencia:
+
+- **MessageSendBurst**: Partículas que aparecen al enviar un mensaje
+- **BotAvatarGlow**: Glow pulsante alrededor del avatar cuando el bot está "pensando"
+- **TransformationFlash**: Destello rojo rápido cuando se activa el modo transformación
+
+**Configuración**: Edita `frontend/src/lib/config.ts`:
+- `enableMagicAnimations`: Habilita/deshabilita las animaciones (default: `true`)
+- `particleIntensity`: Intensidad de las partículas (0.0 a 2.0, default: `1.0`)
+
+**Componentes disponibles**:
+```typescript
+import { MessageSendBurst } from "@/components/animations/message-send-burst";
+import { BotAvatarGlow } from "@/components/animations/bot-avatar-glow";
+import { TransformationFlash } from "@/components/animations/transformation-flash";
+```
+
+### 🦋 Modo Transformación
+
+Sistema especial que activa un modo "épico" del bot cuando se detecta una palabra clave:
+
+**Activación**:
+- Escribe la palabra clave configurada (default: `"transformación"`) en tu mensaje
+- El bot activa automáticamente el modo transformación para esa respuesta
+- Se reproduce un sonido especial y un destello visual
+
+**Efectos**:
+- El prompt del sistema se modifica para darle un tono más heroico y épico
+- Duración: Solo para la respuesta actual (configurable en `transformationDuration`)
+
+**Configuración**: Edita `frontend/src/lib/config.ts`:
+- `transformationKeyword`: Palabra clave para activar el modo (default: `"transformación"`)
+- `transformationDuration`: Duración en ms (default: `5000`)
+
+**Uso programático**:
+```typescript
+import { 
+  detectTransformationKeyword, 
+  triggerTransformation,
+  isTransformationModeActive 
+} from "@/lib/personality/transformation-mode";
+
+if (detectTransformationKeyword(message)) {
+  triggerTransformation();
+}
+```
+
+### 🔐 Hashing de Mensajes
+
+Sistema de privacidad que hashea los mensajes antes de enviarlos al backend:
+
+- Los mensajes se hashean usando SHA-256 en el cliente antes de enviarse
+- El backend recibe el hash y el contenido original (para procesamiento)
+- Opcionalmente, el backend puede almacenar solo el hash para mayor privacidad
+
+**Configuración**: Edita `frontend/src/lib/config.ts`:
+- `enableMessageHashing`: Habilita/deshabilita el hashing (default: `true`)
+
+**Implementación**:
+```typescript
+import { hashMessage } from "@/lib/security/hash-message";
+
+const hashedContent = await hashMessage("Mi mensaje");
+```
+
+**Backend**:
+El backend acepta tanto mensajes hasheados como originales para mantener compatibilidad:
+- Si `original_content` está presente, `content` es el hash
+- Si no, `content` es el mensaje original (compatibilidad con clientes antiguos)
+
 ## Notas adicionales
 
 - Este repositorio no incluye dependencias instaladas. Ejecuta `npm install` y `pip install -e .` la primera vez.
 - Las claves sensibles deben residir únicamente en `.env` (no versionar).
 - El backend espera tablas existentes en Supabase; no crea la infraestructura automáticamente.
+- Los sonidos se generan sintéticamente usando Web Audio API, no requieren archivos externos.
+- Las animaciones usan CSS puro y son de bajo costo de rendimiento.
 

@@ -22,6 +22,15 @@ import {
   updateProfile
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
+import { 
+  detectTransformationKeyword, 
+  triggerTransformation, 
+  resetTransformationAfterResponse,
+  isTransformationModeActive 
+} from "@/lib/personality/transformation-mode";
+import { TransformationFlash } from "@/components/animations/transformation-flash";
+import { useSound } from "@/lib/sounds/sound-manager";
+import { appConfig } from "@/lib/config";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -33,16 +42,18 @@ export default function DashboardPage() {
   const [chatLoading, setChatLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [transformationFlash, setTransformationFlash] = useState(false);
+  const { playTransformation } = useSound();
 
   const welcomeMessage = useMemo<Message>(
     () => ({
       id: "welcome-message",
       role: "assistant",
       content:
-        "¡Hola! Soy tu asesor académico. Cuéntame sobre tus objetivos, trámites o dudas y te guiaré paso a paso.",
+        `¡Hola! ✨ Soy tu compañera ${user?.full_name?.split(" ")[0] || "Amiga"}. Estoy aquí para acompañarte en tu día a día. ¿En qué puedo ayudarte hoy?`,
       created_at: new Date().toISOString()
     }),
-    []
+    [user?.full_name]
   );
 
   // Redirigir a login si no hay usuario autenticado
@@ -62,23 +73,6 @@ export default function DashboardPage() {
     }
   }, []);
 
-  useEffect(() => {
-    const sessionId = searchParams.get("session_id");
-    if (!sessionId) return;
-
-    const refreshProfile = async () => {
-      try {
-        const profile = await fetchProfile();
-        setUser(profile);
-        // Limpiar el session_id de la URL después de refrescar
-        router.replace("/dashboard");
-      } catch (error) {
-        console.error("Failed to refresh profile after checkout", error);
-      }
-    };
-
-    void refreshProfile();
-  }, [searchParams, setUser, router]);
 
   useEffect(() => {
     if (!user || initialized) return;
@@ -132,6 +126,18 @@ export default function DashboardPage() {
     async (content: string) => {
       let conversationId = currentConversationId;
 
+      // Detectar y activar modo transformación
+      if (detectTransformationKeyword(content)) {
+        triggerTransformation();
+        if (appConfig.enableSounds) {
+          playTransformation();
+        }
+        if (appConfig.enableMagicAnimations) {
+          setTransformationFlash(true);
+          setTimeout(() => setTransformationFlash(false), 500);
+        }
+      }
+
       const userMessage: Message = {
         id: `temp-user-${Date.now()}`,
         content,
@@ -181,6 +187,9 @@ export default function DashboardPage() {
             console.log("Stream completed:", { messageId, newConversationId, conversationId });
             setStreamingMessageId(null);
             setChatLoading(false);
+            
+            // Resetear modo transformación después de la respuesta
+            resetTransformationAfterResponse();
             
             if (newConversationId && newConversationId !== conversationId) {
               conversationId = newConversationId;
@@ -331,7 +340,10 @@ export default function DashboardPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden max-w-full relative">
+    <div className="flex h-screen bg-gradient-to-br from-white via-pink-50/30 to-white overflow-hidden max-w-full relative">
+      {/* Transformation Flash */}
+      <TransformationFlash trigger={transformationFlash} />
+      
       {/* Sidebar */}
       <div 
         className={`
@@ -355,6 +367,7 @@ export default function DashboardPage() {
           onDeleteConversation={handleDeleteConversation}
           onRenameConversation={handleRenameConversation}
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
+          userName={user?.full_name}
         />
       </div>
 

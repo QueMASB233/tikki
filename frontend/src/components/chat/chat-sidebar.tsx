@@ -13,6 +13,7 @@ interface ChatSidebarProps {
   onDeleteConversation: (conversationId: string) => void;
   onRenameConversation: (conversationId: string, newTitle: string) => void;
   onCloseMobile?: () => void;
+  userName?: string; // Nuevo prop
 }
 
 export function ChatSidebar({
@@ -23,6 +24,7 @@ export function ChatSidebar({
   onDeleteConversation,
   onRenameConversation,
   onCloseMobile,
+  userName, // Usar
 }: ChatSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export function ChatSidebar({
   return (
       <aside
         className={clsx(
-          "h-full flex flex-col border-r border-slate-200 bg-[#f7f9fb] transition-all duration-300 w-full",
+          "h-full flex flex-col border-r border-border bg-white transition-all duration-300 w-full",
           isCollapsed ? "w-20 px-2 py-6" : "w-72 px-4 py-6"
         )}
       >
@@ -66,13 +68,13 @@ export function ChatSidebar({
         {!isCollapsed && (
           <div className="flex items-center gap-2 overflow-hidden">
         <img
-          src="https://storage.googleapis.com/msgsndr/IRGxH3YhbSBNF8NVepYv/media/6813b73ace8c9719e636ba19.png"
-          alt="Estudia Seguro"
-              className="h-8 w-auto flex-shrink-0"
+          src="https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/d14ea819-bcbe-49dc-99b9-e81086106809/dfrh2ua-b7109a51-d4a9-4ad3-a296-5080c8f2c81d.png"
+          alt="Ladybug"
+          className="h-8 w-8 object-contain"
         />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-brand-dark">Estudia Seguro</p>
-              <p className="truncate text-xs text-slate-500">Suscripción activa</p>
+              <p className="truncate text-sm font-semibold text-text">{userName || "Usuario"}</p>
+              <p className="truncate text-xs text-text-light font-normal">Activo</p>
             </div>
         </div>
         )}
@@ -87,7 +89,7 @@ export function ChatSidebar({
               setIsCollapsed(!isCollapsed);
             }
           }}
-          className="rounded-lg p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="rounded-lg p-1 text-text-light hover:bg-gray-100 hover:text-text transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
           title={isCollapsed ? "Expandir menú" : "Reducir menú"}
         >
           {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
@@ -96,8 +98,8 @@ export function ChatSidebar({
 
       <button
         onClick={onNewConversation}
-        className={clsx(
-          "mb-4 flex items-center justify-center rounded-xl border border-dashed border-brand-primary/40 bg-brand-primary/10 font-semibold text-brand-primary hover:border-brand-primary hover:bg-brand-primary/20 min-h-[44px]",
+          className={clsx(
+          "mb-4 flex items-center justify-center rounded-lg border border-border bg-white font-medium text-text hover:border-primary hover:text-primary transition-all min-h-[44px]",
           isCollapsed ? "h-10 w-full" : "gap-2 px-3 py-2 text-xs"
         )}
         title="Nueva conversación"
@@ -106,14 +108,14 @@ export function ChatSidebar({
         {!isCollapsed && "Nueva conversación"}
       </button>
 
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto scrollbar-none">
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto scrollbar-thin">
         {!isCollapsed && (
-          <p className="mb-2 text-xs font-semibold uppercase text-slate-400">Conversaciones</p>
+          <p className="mb-2 text-xs font-medium uppercase text-text-light tracking-wider">Conversaciones</p>
         )}
         
         {conversations.length === 0 ? (
           !isCollapsed && (
-            <p className="text-xs italic text-slate-500">
+            <p className="text-xs text-text-light">
             No hay conversaciones. Crea una nueva para comenzar.
           </p>
           )
@@ -122,16 +124,16 @@ export function ChatSidebar({
             <div
               key={conv.id}
               className={clsx(
-                "group relative flex cursor-pointer items-center rounded-xl transition-colors",
+                "group relative flex cursor-pointer items-center rounded-xl transition-all duration-200",
                 currentConversationId === conv.id
-                  ? "bg-brand-primary/20 border border-brand-primary/40"
-                  : "bg-white border border-transparent hover:bg-slate-50",
+                  ? "bg-primary text-white border border-primary"
+                  : "bg-white border border-transparent hover:bg-gray-50 hover:border-border",
                 isCollapsed ? "justify-center p-2" : "p-3"
               )}
               onClick={() => onSelectConversation(conv.id)}
             >
               {isCollapsed ? (
-                <MessageSquare size={18} className="text-slate-500" />
+                <MessageSquare size={18} className={currentConversationId === conv.id ? "text-white" : "text-text-light"} />
               ) : (
                 <div className="min-w-0 flex-1">
                   {editingId === conv.id ? (
@@ -143,11 +145,14 @@ export function ChatSidebar({
                       onBlur={handleFinishRename}
                       onKeyDown={handleKeyDown}
                       onClick={(e) => e.stopPropagation()}
-                      className="w-full rounded border border-brand-primary px-1 py-0.5 text-xs outline-none"
+                      className="w-full rounded border border-primary px-1 py-0.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   ) : (
                     <p
-                      className="line-clamp-2 font-medium text-slate-700"
+                      className={clsx(
+                        "line-clamp-2 font-semibold",
+                        currentConversationId === conv.id ? "text-white" : "text-text"
+                      )}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
                         handleStartRename(conv);
@@ -157,7 +162,10 @@ export function ChatSidebar({
                 {conv.title || "Sin título"}
               </p>
                   )}
-                  <p className="mt-1 text-[10px] text-slate-400">
+                  <p className={clsx(
+                    "mt-1 text-[10px] font-medium",
+                    currentConversationId === conv.id ? "text-white/80" : "text-text-light"
+                  )}>
                 {new Date(conv.updated_at).toLocaleDateString("es-ES", {
                   day: "numeric",
                   month: "short",
@@ -172,7 +180,10 @@ export function ChatSidebar({
                     e.stopPropagation();
                     onDeleteConversation(conv.id);
                   }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+                  className={clsx(
+                    "absolute right-2 top-1/2 -translate-y-1/2 opacity-0 transition-all hover:scale-110 group-hover:opacity-100 rounded p-1",
+                    currentConversationId === conv.id ? "hover:bg-white/20 text-white" : "hover:bg-red-100 text-red-500"
+                  )}
                   title="Eliminar conversación"
                 >
                   <Trash2 size={14} />

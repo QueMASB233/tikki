@@ -56,9 +56,9 @@ def signup(
                     email=user["email"], 
                     status=user["status"],
                     full_name=user.get("full_name"),
-                    study_type=user.get("study_type"),
-                    career_interest=user.get("career_interest"),
-                    nationality=user.get("nationality"),
+                    personality_type=user.get("personality_type"),
+                    favorite_activity=user.get("favorite_activity"),
+                    daily_goals=user.get("daily_goals"),
                 ),
                 requiresPayment=None,
             )
@@ -71,10 +71,10 @@ def signup(
                     "auth_user_id": payload.auth_user_id,
                     "email": payload.email,
                     "full_name": payload.full_name,
-                    "status": "pending",  # Usuario pendiente hasta que pague
-                    "study_type": payload.study_type,
-                    "career_interest": payload.career_interest,
-                    "nationality": payload.nationality,
+                    "status": "active",  # Usuario activo automáticamente
+                    "personality_type": payload.personality_type,
+                    "favorite_activity": payload.favorite_activity,
+                    "daily_goals": payload.daily_goals,
                 }
             )
             .execute()
@@ -100,9 +100,9 @@ def signup(
                 email=user["email"], 
                 status=user["status"],
                 full_name=user.get("full_name"),
-                study_type=user.get("study_type"),
-                career_interest=user.get("career_interest"),
-                nationality=user.get("nationality"),
+                personality_type=user.get("personality_type"),
+                favorite_activity=user.get("favorite_activity"),
+                daily_goals=user.get("daily_goals"),
             ),
             requiresPayment=None,  # Desactivado pago temporalmente
         )
@@ -146,9 +146,9 @@ def get_profile(current_user=Depends(get_current_user)):
         email=current_user["email"],
         status=current_user["status"],
         full_name=full_name,
-        study_type=current_user.get("study_type"),
-        career_interest=current_user.get("career_interest"),
-        nationality=current_user.get("nationality"),
+        personality_type=current_user.get("personality_type"),
+        favorite_activity=current_user.get("favorite_activity"),
+        daily_goals=current_user.get("daily_goals"),
     )
 
 
@@ -166,12 +166,12 @@ def update_profile(
     update_data = {}
     if payload.full_name:
         update_data["full_name"] = payload.full_name
-    if payload.study_type:
-        update_data["study_type"] = payload.study_type
-    if payload.career_interest:
-        update_data["career_interest"] = payload.career_interest
-    if payload.nationality:
-        update_data["nationality"] = payload.nationality
+    if payload.personality_type:
+        update_data["personality_type"] = payload.personality_type
+    if payload.favorite_activity:
+        update_data["favorite_activity"] = payload.favorite_activity
+    if payload.daily_goals:
+        update_data["daily_goals"] = payload.daily_goals
     
     if not update_data:
         # Si no hay datos para actualizar, devolver el usuario actual
@@ -180,9 +180,9 @@ def update_profile(
             email=current_user["email"],
             status=current_user["status"],
             full_name=current_user.get("full_name"),
-            study_type=current_user.get("study_type"),
-            career_interest=current_user.get("career_interest"),
-            nationality=current_user.get("nationality"),
+            personality_type=current_user.get("personality_type"),
+            favorite_activity=current_user.get("favorite_activity"),
+            daily_goals=current_user.get("daily_goals"),
         )
     
     update_response = supabase.table("users").update(update_data).eq("id", user_id).execute()
@@ -200,184 +200,10 @@ def update_profile(
         email=updated_user["email"],
         status=updated_user["status"],
         full_name=updated_user.get("full_name"),
-        study_type=updated_user.get("study_type"),
-        career_interest=updated_user.get("career_interest"),
-        nationality=updated_user.get("nationality"),
+        personality_type=updated_user.get("personality_type"),
+        favorite_activity=updated_user.get("favorite_activity"),
+        daily_goals=updated_user.get("daily_goals"),
     )
 
 
-@router.post("/complete-signup", response_model=UserResponse)
-async def complete_signup(
-    payload: dict,
-    settings: Settings = Depends(get_settings),
-    supabase: Client = Depends(get_supabase),
-):
-    """
-    Completa el registro después del pago y onboarding.
-    1. Valida que el billing_intent existe, está pagado y no consumido
-    2. Crea usuario en Supabase Auth (si no existe)
-    3. Crea fila en tabla users con todos los datos
-    4. Crea contacto en HighLevel
-    5. Marca billing_intent como consumed = true
-    """
-    session_id = payload.get("session_id")
-    auth_user_id = payload.get("auth_user_id")
-    email = payload.get("email")
-    password = payload.get("password")  # Para crear en Supabase Auth si es necesario
-    full_name = payload.get("full_name")
-    study_type = payload.get("study_type")
-    career_interest = payload.get("career_interest")
-    nationality = payload.get("nationality")
-    
-    if not session_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="session_id es requerido.",
-        )
-    
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="email es requerido.",
-        )
-    
-    # 1. Validar billing_intent
-    intent_response = supabase.table("billing_intents").select("*").eq("stripe_session_id", session_id).single().execute()
-    
-    if not intent_response.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sesión de pago no encontrada.",
-        )
-    
-    intent = intent_response.data
-    
-    if not intent.get("paid"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El pago no ha sido completado.",
-        )
-    
-    if intent.get("consumed"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Esta sesión de pago ya ha sido utilizada.",
-        )
-    
-    # Validar que el email coincida con el del pago
-    if intent.get("stripe_customer_email") and intent.get("stripe_customer_email") != email:
-        logger.warning(
-            "Email mismatch: billing_intent email={}, provided email={}",
-            intent.get("stripe_customer_email"),
-            email
-        )
-        # No bloquear, pero registrar la advertencia
-    
-    # 2. Crear usuario en Supabase Auth si no existe
-    if not auth_user_id:
-        if not password:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="password es requerido para crear la cuenta.",
-            )
-        
-        try:
-            # Crear usuario en Supabase Auth
-            auth_response = supabase.auth.admin.create_user({
-                "email": email,
-                "password": password,
-                "email_confirm": True,
-            })
-            
-            if not auth_response.user:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="No se pudo crear el usuario en Supabase Auth.",
-                )
-            
-            auth_user_id = auth_response.user.id
-            logger.info("Created user in Supabase Auth: {}", auth_user_id)
-        except Exception as e:
-            logger.error("Error creating user in Supabase Auth: {}", e)
-            if "already registered" in str(e).lower() or "already exists" in str(e).lower():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Este email ya está registrado. Inicia sesión en su lugar.",
-                ) from e
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error al crear la cuenta de usuario.",
-            ) from e
-    
-    # 3. Verificar que el usuario no exista ya en la tabla users
-    existing = supabase.table("users").select("*").eq("email", email).execute()
-    
-    if existing.data and len(existing.data) > 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Este email ya está registrado.",
-        )
-    
-    # Crear nuevo usuario en tabla users
-    insert_data = {
-        "auth_user_id": auth_user_id,
-        "email": email,
-        "full_name": full_name,
-        "study_type": study_type,
-        "career_interest": career_interest,
-        "nationality": nationality,
-        "status": "active",  # Activo porque ya pagó
-    }
-    
-    insert_response = supabase.table("users").insert(insert_data).execute()
-    
-    if not insert_response.data or len(insert_response.data) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="No se pudo crear el perfil del usuario.",
-        )
-    
-    updated_user = insert_response.data[0]
-    
-    # 4. Crear contacto en HighLevel
-    if updated_user.get("email") and updated_user.get("full_name"):
-        try:
-            await create_highlevel_contact(updated_user, settings)
-            logger.info(
-                "HighLevel contact created successfully after signup completion for user: {} (email: {})",
-                updated_user["id"],
-                updated_user.get("email")
-            )
-        except Exception as e:
-            # Log error but don't break the signup flow
-            logger.error(
-                "Failed to create HighLevel contact after signup completion for user {}: {}",
-                updated_user.get("id"),
-                str(e),
-            )
-    else:
-        logger.warning(
-            "Skipping HighLevel contact creation - missing required fields (email or full_name) for user: {}",
-            updated_user.get("id")
-        )
-    
-    # 5. Marcar billing_intent como consumed
-    update_intent_response = supabase.table("billing_intents").update({
-        "consumed": True,
-    }).eq("id", intent["id"]).execute()
-    
-    if not update_intent_response.data or len(update_intent_response.data) == 0:
-        logger.warning("Failed to mark billing_intent as consumed: {}", intent["id"])
-    else:
-        logger.info("Marked billing_intent as consumed: {}", intent["id"])
-    
-    return UserResponse(
-        id=updated_user["id"],
-        email=updated_user["email"],
-        status=updated_user["status"],
-        full_name=updated_user.get("full_name"),
-        study_type=updated_user.get("study_type"),
-        career_interest=updated_user.get("career_interest"),
-        nationality=updated_user.get("nationality"),
-    )
 

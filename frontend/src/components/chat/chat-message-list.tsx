@@ -52,7 +52,7 @@ export function ChatMessageList({ messages, loading, streamingMessageId, scrollT
   return (
     <div 
       ref={containerRef}
-      className="h-full overflow-y-auto bg-brand-light px-3 sm:px-4 pb-4 sm:pb-6 pt-4 sm:pt-10 scrollbar-thin"
+      className="h-full overflow-y-auto bg-gradient-to-b from-white via-pink-50/20 to-white px-3 sm:px-4 pb-4 sm:pb-6 pt-4 sm:pt-10 scrollbar-thin"
     >
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 sm:gap-3">
         {messages.map((message) => (
@@ -65,12 +65,15 @@ export function ChatMessageList({ messages, loading, streamingMessageId, scrollT
         {/* Solo mostrar loading si no hay un mensaje del asistente en streaming */}
         {loading && !streamingMessageId && (
           <div className="flex items-center justify-start gap-4 rounded-2xl px-6 py-5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary text-sm font-semibold text-white">
-              ES
+            <div className="relative">
+              <div className="absolute inset-0 bg-ladybug-gradient rounded-full blur-md opacity-50"></div>
+              <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-ladybug-gradient text-sm font-bold text-white shadow-ladybug">
+                ✨
+              </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-              <div className="text-slate-400 animate-pulse">
-                Razonando para darte una mejor respuesta...
+            <div className="rounded-2xl border-2 border-ladybug-pink/30 bg-white/90 backdrop-blur-sm px-5 py-4 shadow-ladybug">
+              <div className="text-ladybug-pink animate-pulse font-semibold">
+                ✨ Razonando para darte una mejor respuesta...
               </div>
             </div>
           </div>

@@ -16,15 +16,15 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Estudia Seguro | Asesoría Académica IA",
+  title: "Ladybug | Tu compañera diaria",
   description:
-    "Accede a un asesor académico inteligente con memoria para resolver dudas sobre universidades, becas y trámites.",
+    "Tu compañera Ladybug te acompaña en tu día a día con inteligencia artificial y memoria personalizada.",
   metadataBase: new URL("https://estudia-seguro.vercel.app"),
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Estudia Seguro",
+    title: "Tikki",
   },
   formatDetection: {
     telephone: false,
@@ -47,7 +47,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#0a3aa3" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Estudia Seguro" />
+        <meta name="apple-mobile-web-app-title" content="Tikki" />
       </head>
       <body className={inter.className}>
         <AppProviders>

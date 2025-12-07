@@ -14,6 +14,7 @@ from ..lib.supabase import get_supabase_client
 from ..lib.memory import SemanticMemory, EpisodicMemory, ConversationMemory
 from ..lib.rag.retrieval import retrieve_relevant_chunks, format_chunks_for_prompt
 from ..lib.rag.web_search import search_web, format_web_results_for_prompt
+from ..lib.security.encryption import encrypt_message, decrypt_message
 from ..schemas import (
     ChatRequest,
     ConversationResponse,
@@ -175,6 +176,19 @@ def get_history(
     response = query.order("created_at", desc=False).execute()
     history = response.data if hasattr(response, "data") and response.data else []
     
+    # Desencriptar mensajes
+    decrypted_history = []
+    for item in history:
+        try:
+            content = decrypt_message(item["content"])
+        except Exception:
+            content = item["content"] # Fallback
+            
+        decrypted_history.append({
+            **item,
+            "content": content
+        })
+    
     return [
         MessageResponse(
             id=item["id"],
@@ -182,7 +196,7 @@ def get_history(
             content=item["content"],
             created_at=datetime.fromisoformat(item["created_at"].replace("Z", "+00:00")),
         )
-        for item in history
+        for item in decrypted_history
     ]
 
 
@@ -195,6 +209,8 @@ async def send_message_endpoint(
     """Endpoint para enviar un mensaje usando streaming con animación typewriter."""
     logger.info("User {} sending message (streaming)", current_user["email"])
     user_id = current_user["id"]
+    
+    # El frontend ahora envía el mensaje en texto plano (el backend se encarga de encriptar)
     content = payload.content.strip()
     
     if not content:
@@ -233,11 +249,14 @@ async def send_message_endpoint(
                 }).eq("id", conversation_id).execute()
             
             # 2. Insertar mensaje del usuario
+            # Encriptar mensaje antes de guardar
+            encrypted_content = encrypt_message(content)
+            
             user_msg_response = supabase_client.table("messages").insert({
                 "user_id": user_id,
                 "conversation_id": conversation_id,
                 "role": "user",
-                "content": content,
+                "content": encrypted_content, 
             }).execute()
             
             if not user_msg_response.data or len(user_msg_response.data) == 0:
@@ -265,11 +284,16 @@ async def send_message_endpoint(
             web_context = format_web_results_for_prompt(web_search_results) if web_search_results else ""
             
             # 3.7. Obtener información del perfil del usuario
-            user_response = supabase_client.table("users").select("study_type, career_interest, nationality").eq("id", user_id).execute()
+            user_response = supabase_client.table("users").select("full_name, personality_type, favorite_activity, daily_goals").eq("id", user_id).execute()
             user_data = user_response.data[0] if user_response.data and len(user_response.data) > 0 else {}
-            user_study_type = user_data.get("study_type")
-            user_career_interest = user_data.get("career_interest")
-            user_nationality = user_data.get("nationality")
+            
+            # Extraer el primer nombre del usuario
+            full_name = user_data.get("full_name", "")
+            user_name = full_name.split()[0] if full_name and full_name.strip() else None
+            
+            user_study_type = user_data.get("personality_type")  # Compatibilidad con nombre de parámetro
+            user_career_interest = user_data.get("favorite_activity")  # Compatibilidad con nombre de parámetro
+            user_nationality = user_data.get("daily_goals")  # Compatibilidad con nombre de parámetro
             
             # 4. Obtener mensajes recientes
             history_response = (
@@ -281,16 +305,29 @@ async def send_message_endpoint(
         )
             history = history_response.data or []
             
-            if conversation_summary and len(history) > 5:
-                recent_history = history[-5:]
+            # Desencriptar mensajes del historial antes de usarlos
+            decrypted_history = []
+            for item in history:
+                try:
+                    decrypted_content = decrypt_message(item["content"])
+                except Exception:
+                    decrypted_content = item["content"] # Fallback si no está encriptado
+                decrypted_history.append({
+                    **item,
+                    "content": decrypted_content
+                })
+            
+            if conversation_summary and len(decrypted_history) > 5:
+                recent_history = decrypted_history[-5:]
             else:
-                recent_history = history
+                recent_history = decrypted_history
             
             # 5. Construir prompt
             system_prompt = build_system_prompt(
                 semantic_context,
                 episodic_context,
                 conversation_summary,
+                user_name=user_name,
                 user_study_type=user_study_type,
                 user_career_interest=user_career_interest,
                 user_nationality=user_nationality,
@@ -380,11 +417,14 @@ async def send_message_endpoint(
                 yield f"data: {json.dumps({'error': 'No se pudo generar respuesta del asistente'})}\n\n"
                 return
                 
+            # Encriptar respuesta del asistente antes de guardar
+            encrypted_assistant_content = encrypt_message(assistant_content)
+                
             assistant_msg_response = supabase_client.table("messages").insert({
                 "user_id": user_id,
                 "conversation_id": conversation_id,
                 "role": "assistant",
-                "content": assistant_content,
+                "content": encrypted_assistant_content,
             }).execute()
             
             if not assistant_msg_response.data or len(assistant_msg_response.data) == 0:

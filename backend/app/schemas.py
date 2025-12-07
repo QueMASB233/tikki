@@ -8,9 +8,9 @@ class SignupRequest(BaseModel):
     auth_user_id: str = Field(description="ID del usuario en Supabase Auth")
     email: EmailStr
     full_name: str = Field(default="", description="User's full name (can be empty for initial signup)")
-    study_type: Optional[str] = Field(None, description="Tipo de estudio que busca (máster, posgrado, grado, etc.)")
-    career_interest: Optional[str] = Field(None, description="Carrera o área de interés")
-    nationality: Optional[str] = Field(None, description="Nacionalidad del usuario")
+    personality_type: Optional[str] = Field(None, description="Tipo de personalidad del usuario")
+    favorite_activity: Optional[str] = Field(None, description="Actividad favorita del usuario")
+    daily_goals: Optional[str] = Field(None, description="Objetivos diarios del usuario")
 
 
 class LoginRequest(BaseModel):
@@ -23,9 +23,9 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     status: Literal["pending", "active"]
-    study_type: Optional[str] = None
-    career_interest: Optional[str] = None
-    nationality: Optional[str] = None
+    personality_type: Optional[str] = None
+    favorite_activity: Optional[str] = None
+    daily_goals: Optional[str] = None
 
 
 class AuthResponse(BaseModel):
@@ -37,9 +37,9 @@ class AuthResponse(BaseModel):
 class UpdateProfileRequest(BaseModel):
     """Request para actualizar el perfil del usuario."""
     full_name: Optional[str] = Field(None, description="Nombre completo del usuario")
-    study_type: Optional[str] = Field(None, description="Tipo de estudio que busca")
-    career_interest: Optional[str] = Field(None, description="Carrera o área de interés")
-    nationality: Optional[str] = Field(None, description="Nacionalidad del usuario")
+    personality_type: Optional[str] = Field(None, description="Tipo de personalidad del usuario")
+    favorite_activity: Optional[str] = Field(None, description="Actividad favorita del usuario")
+    daily_goals: Optional[str] = Field(None, description="Objetivos diarios del usuario")
 
 
 class CheckoutRequest(BaseModel):

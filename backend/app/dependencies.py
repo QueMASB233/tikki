@@ -6,6 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 from supabase import Client, create_client
+from postgrest.exceptions import APIError
 import httpx
 
 # Usar certificados del sistema de macOS en lugar de certifi
@@ -39,9 +40,16 @@ def get_supabase(settings: Settings = Depends(get_settings)) -> Client:
     logger.debug("Service role key present: {}", bool(settings.supabase_service_role_key))
     logger.debug("Service role key starts with: {}", settings.supabase_service_role_key[:10] if settings.supabase_service_role_key else "N/A")
     
-    if not settings.supabase_service_role_key or settings.supabase_service_role_key == "REEMPLAZA_CON_TU_SERVICE_ROLE_KEY":
+    if not settings.supabase_service_role_key or settings.supabase_service_role_key in ["REEMPLAZA_CON_TU_SERVICE_ROLE_KEY", "your_supabase_service_role_key_here", ""]:
         logger.error("SUPABASE_SERVICE_ROLE_KEY no está configurado correctamente!")
-        raise ValueError("SUPABASE_SERVICE_ROLE_KEY debe estar configurado en las variables de entorno")
+        logger.error("Para obtenerla: https://supabase.com/dashboard/project/mgmkxwasvncvvizclewp → Settings → API → service_role key")
+        # Permitir que el backend inicie pero las funciones que requieren service_role fallarán
+        # Usar anon key temporalmente solo para que el cliente se cree (limitado)
+        if settings.supabase_anon_key:
+            logger.warning("Usando anon key temporalmente. Las funciones de admin (crear usuarios) NO funcionarán.")
+            settings.supabase_service_role_key = settings.supabase_anon_key
+        else:
+            raise ValueError("SUPABASE_SERVICE_ROLE_KEY debe estar configurado. Obténla en: Supabase Dashboard → Settings → API")
     
     try:
         # Crear cliente de Supabase - usar configuración por defecto
@@ -97,13 +105,28 @@ async def get_current_user(
         logger.debug("Authenticated auth_user_id: {}", auth_user_id)
         
         # Buscar el usuario en nuestra tabla public.users usando auth_user_id
-        response = supabase.table("users").select("*").eq("auth_user_id", auth_user_id).single().execute()
-        
-        if not hasattr(response, 'data') or not response.data:
-            logger.warning("User not found in public.users for auth_user_id: {}", auth_user_id)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no encontrado"
-            )
+        try:
+            response = supabase.table("users").select("*").eq("auth_user_id", auth_user_id).single().execute()
+            
+            if not hasattr(response, 'data') or not response.data:
+                logger.warning("User not found in public.users for auth_user_id: {}", auth_user_id)
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no encontrado. Por favor, completa tu registro."
+                )
+        except APIError as e:
+            # Si no se encuentra el usuario (APIError con código PGRST116), significa que no existe en la tabla
+            if hasattr(e, 'code') and e.code == 'PGRST116':
+                logger.warning("User not found in public.users for auth_user_id: {} - User exists in Auth but not in users table", auth_user_id)
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, 
+                    detail="Usuario no encontrado. Por favor, completa tu registro."
+                )
+            # Re-lanzar otros errores de API
+            raise
+        except Exception as e:
+            # Manejar otros errores
+            logger.error("Unexpected error fetching user: {}", e)
+            raise
 
         logger.debug("User authenticated successfully: {}", response.data.get("email"))
         return response.data

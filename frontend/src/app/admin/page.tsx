@@ -27,9 +27,9 @@ export default function AdminLandingPage() {
       <div className="w-full max-w-md space-y-8 text-center">
         <div className="flex flex-col items-center">
           <img
-            src="https://storage.googleapis.com/msgsndr/IRGxH3YhbSBNF8NVepYv/media/67ec02b6379294639cf06e08.png"
-            alt="Estudia Seguro"
-            className="mb-6 h-12 w-auto"
+            src="https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/d14ea819-bcbe-49dc-99b9-e81086106809/dfrh2ua-b7109a51-d4a9-4ad3-a296-5080c8f2c81d.png"
+            alt="Ladybug"
+            className="h-12 w-12 mb-6 object-contain"
           />
           <h1 className="text-3xl font-bold tracking-tight text-[#2d333a]">
             Portal de Administración

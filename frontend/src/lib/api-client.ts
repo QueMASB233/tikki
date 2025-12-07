@@ -1,5 +1,7 @@
 import axios from "axios";
 import { supabase } from "./supabase-client";
+// import { hashMessage } from "./security/hash-message"; // Ya no se usa
+// import { appConfig } from "./config"; // Ya no se usa para hashing
 
 const backendUrl =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -13,9 +15,9 @@ export interface AuthResponse {
     email: string;
     full_name?: string;
     status: "pending" | "active";
-    study_type?: string;
-    career_interest?: string;
-    nationality?: string;
+    personality_type?: string;
+    favorite_activity?: string;
+    daily_goals?: string;
   };
   requiresPayment?: boolean;
 }
@@ -165,9 +167,9 @@ export async function signup(
   email: string, 
   password: string, 
   fullName: string,
-  studyType?: string,
-  careerInterest?: string,
-  nationality?: string
+  personalityType?: string,
+  favoriteActivity?: string,
+  dailyGoals?: string
 ) {
   console.log("[Signup] Attempting signup for:", email);
   try {
@@ -194,9 +196,9 @@ export async function signup(
       auth_user_id: authUserId,
       email,
       full_name: fullName,
-      study_type: studyType,
-      career_interest: careerInterest,
-      nationality: nationality
+      personality_type: personalityType,
+      favorite_activity: favoriteActivity,
+      daily_goals: dailyGoals
     }, {
       headers: {
         // Usar el token de sesión de Supabase Auth
@@ -230,18 +232,18 @@ export async function completeSignup(
   email: string,
   password: string,
   fullName: string,
-  studyType?: string,
-  careerInterest?: string,
-  nationality?: string
+  personalityType?: string,
+  favoriteActivity?: string,
+  dailyGoals?: string
 ) {
   const { data } = await apiClient.post("/auth/complete-signup", {
     session_id: sessionId,
     email,
     password,
     full_name: fullName,
-    study_type: studyType,
-    career_interest: careerInterest,
-    nationality,
+    personality_type: personalityType,
+    favorite_activity: favoriteActivity,
+    daily_goals: dailyGoals,
   });
   return data;
 }
@@ -288,6 +290,7 @@ export async function fetchMessages(conversationId?: string) {
 }
 
 export async function sendMessage(content: string, conversationId?: string) {
+  // Enviar mensaje en texto plano (el backend se encarga de encriptar)
   const { data } = await apiClient.post<Message>("/chat/send", {
     content,
     conversation_id: conversationId || null
@@ -307,6 +310,7 @@ export async function sendMessageStream(
     throw new Error("No authentication token");
   }
 
+  // Enviar mensaje en texto plano (el backend se encarga de encriptar)
   const response = await fetch(`${backendUrl}/chat/send`, {
     method: "POST",
     headers: {
@@ -432,15 +436,15 @@ export async function fetchProfile() {
 
 export async function updateProfile(
   fullName?: string,
-  studyType?: string,
-  careerInterest?: string,
-  nationality?: string
+  personalityType?: string,
+  favoriteActivity?: string,
+  dailyGoals?: string
 ) {
   const { data } = await apiClient.patch<AuthResponse["user"]>("/auth/me", {
     full_name: fullName,
-    study_type: studyType,
-    career_interest: careerInterest,
-    nationality: nationality
+    personality_type: personalityType,
+    favorite_activity: favoriteActivity,
+    daily_goals: dailyGoals
   });
   return data;
 }

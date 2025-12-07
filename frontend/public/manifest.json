@@ -1,7 +1,7 @@
 {
-  "name": "Estudia Seguro | Asesoría Académica IA",
-  "short_name": "Estudia Seguro",
-  "description": "Accede a un asesor académico inteligente con memoria para resolver dudas sobre universidades, becas y trámites.",
+  "name": "Tikki",
+  "short_name": "Tikki",
+  "description": "Tu compañera Ladybug te acompaña en tu día a día con inteligencia artificial y memoria personalizada.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f6f9fc",

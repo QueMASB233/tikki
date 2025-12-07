@@ -20,16 +20,16 @@ export interface User {
   email: string;
   full_name?: string;
   status: "pending" | "active";
-  study_type?: string;
-  career_interest?: string;
-  nationality?: string;
+  personality_type?: string;
+  favorite_activity?: string;
+  daily_goals?: string;
 }
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<AuthResponse>;
-  signup: (email: string, password: string, fullName: string, studyType?: string, careerInterest?: string, nationality?: string) => Promise<AuthResponse>;
+  signup: (email: string, password: string, fullName: string, personalityType?: string, favoriteActivity?: string, dailyGoals?: string) => Promise<AuthResponse>;
   logout: () => void;
   setUser: (user: User | null) => void;
 }
@@ -113,8 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signup = useCallback(
-    async (email: string, password: string, fullName: string, studyType?: string, careerInterest?: string, nationality?: string) => {
-      const response = await apiSignup(email, password, fullName, studyType, careerInterest, nationality);
+    async (email: string, password: string, fullName: string, personalityType?: string, favoriteActivity?: string, dailyGoals?: string) => {
+      const response = await apiSignup(email, password, fullName, personalityType, favoriteActivity, dailyGoals);
       return handleAuth(response);
     },
     [handleAuth]

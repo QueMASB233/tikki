@@ -42,8 +42,8 @@ def create_checkout_session(
                         "currency": "usd",
                         "unit_amount": 5500,  # $55.00 USD
                         "product_data": {
-                            "name": "Estudia Seguro Asesoría Académica",
-                            "description": "Acceso al chat con memoria y asesoría académica 24/7",
+                            "name": "Ladybug - Compañera Diaria",
+                            "description": "Acceso a tu compañera Ladybug con IA y memoria personalizada 24/7",
                         },
                     },
                     "quantity": 1,

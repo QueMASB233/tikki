@@ -155,9 +155,9 @@ from .routes import auth, billing, chat, admin
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
-        title="Estudia Seguro API",
+        title="Ladybug API",
         version="0.1.0",
-        description="Backend FastAPI para asesoría académica con IA",
+        description="Backend FastAPI para Ladybug - Compañera diaria con IA",
     )
 
     app.add_middleware(
@@ -169,7 +169,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(auth.router)
-    app.include_router(billing.router)
+    # app.include_router(billing.router)  # Stripe deshabilitado
     app.include_router(chat.router)
     app.include_router(admin.router)
 

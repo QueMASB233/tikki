@@ -1,46 +1,57 @@
 "use client";
 
-import { FormEvent, useState, useEffect } from "react";
-import { PaymentSuccessAnimation } from "./payment-success-animation";
+import { FormEvent, useState } from "react";
 
-const LATIN_AMERICAN_COUNTRIES = [
-  { name: "Argentina", flag: "🇦🇷" },
-  { name: "Bolivia", flag: "🇧🇴" },
-  { name: "Brasil", flag: "🇧🇷" },
-  { name: "Chile", flag: "🇨🇱" },
-  { name: "Colombia", flag: "🇨🇴" },
-  { name: "Costa Rica", flag: "🇨🇷" },
-  { name: "Cuba", flag: "🇨🇺" },
-  { name: "República Dominicana", flag: "🇩🇴" },
-  { name: "Ecuador", flag: "🇪🇨" },
-  { name: "El Salvador", flag: "🇸🇻" },
-  { name: "Guatemala", flag: "🇬🇹" },
-  { name: "Honduras", flag: "🇭🇳" },
-  { name: "México", flag: "🇲🇽" },
-  { name: "Nicaragua", flag: "🇳🇮" },
-  { name: "Panamá", flag: "🇵🇦" },
-  { name: "Paraguay", flag: "🇵🇾" },
-  { name: "Perú", flag: "🇵🇪" },
-  { name: "Puerto Rico", flag: "🇵🇷" },
-  { name: "Uruguay", flag: "🇺🇾" },
-  { name: "Venezuela", flag: "🇻🇪" }
-].sort((a, b) => a.name.localeCompare(b.name));
 
-const STUDY_TYPES = [
-  "Grado (Licenciatura)",
-  "Máster",
-  "Doctorado",
-  "Posgrado",
-  "Curso de especialización",
-  "Otro"
+// Personalidades originales para el backend
+const PERSONALITY_TYPES = [
+  "Valiente y protectora",
+  "Creativa y artística",
+  "Analítica y estratégica",
+  "Energética y entusiasta",
+  "Tranquila y reflexiva",
+  "Aventurera y curiosa"
+];
+
+// Mapeo de personalidades a personajes de Ladybug para mostrar en el frontend
+const PERSONALITY_TO_CHARACTER: Record<string, { name: string }> = {
+  "Valiente y protectora": {
+    name: "Ladybug"
+  },
+  "Creativa y artística": {
+    name: "Pigella"
+  },
+  "Analítica y estratégica": {
+    name: "Rena Rouge"
+  },
+  "Energética y entusiasta": {
+    name: "Carapace"
+  },
+  "Tranquila y reflexiva": {
+    name: "Viperion"
+  },
+  "Aventurera y curiosa": {
+    name: "Chat Noir"
+  }
+};
+
+const FAVORITE_ACTIVITIES = [
+  "Diseño y moda",
+  "Deportes y actividad física",
+  "Arte y creatividad",
+  "Tecnología e innovación",
+  "Música y entretenimiento",
+  "Naturaleza y aventura",
+  "Lectura y aprendizaje",
+  "Socializar y conectar"
 ];
 
 interface OnboardingFlowProps {
   onComplete: (data: {
     fullName: string;
-    studyType: string;
-    careerInterest: string;
-    nationality: string;
+    personalityType: string;
+    favoriteActivity: string;
+    dailyGoals: string;
     email: string;
     password: string;
   }) => Promise<void>;
@@ -48,29 +59,18 @@ interface OnboardingFlowProps {
 }
 
 export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlowProps) {
-  const [showAnimation, setShowAnimation] = useState(true);
   const [step, setStep] = useState(1);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [slideDirection, setSlideDirection] = useState<"left" | "right">("right");
   const [fullName, setFullName] = useState("");
-  const [studyType, setStudyType] = useState("");
-  const [careerInterest, setCareerInterest] = useState("");
-  const [nationality, setNationality] = useState("");
-  const [email, setEmail] = useState(initialEmail);
+  const [personalityType, setPersonalityType] = useState("");
+  const [favoriteActivity, setFavoriteActivity] = useState("");
+  const [dailyGoals, setDailyGoals] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Actualizar email cuando initialEmail cambie
-  useEffect(() => {
-    if (initialEmail) {
-      setEmail(initialEmail);
-    }
-  }, [initialEmail]);
-
-  const handleAnimationComplete = () => {
-    setShowAnimation(false);
-  };
 
   const handleNext = () => {
     if (step < 5 && !isTransitioning) {
@@ -104,16 +104,16 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
       setError("Por favor ingresa tu nombre.");
       return;
     }
-    if (step === 2 && !studyType) {
-      setError("Por favor selecciona un tipo de estudio.");
+    if (step === 2 && !personalityType) {
+      setError("Por favor selecciona una personalidad.");
       return;
     }
-    if (step === 3 && !careerInterest.trim()) {
-      setError("Por favor ingresa la carrera que te interesa.");
+    if (step === 3 && !favoriteActivity) {
+      setError("Por favor selecciona tu actividad favorita.");
       return;
     }
-    if (step === 4 && !nationality) {
-      setError("Por favor selecciona tu nacionalidad.");
+    if (step === 4 && !dailyGoals.trim()) {
+      setError("Por favor comparte tus objetivos diarios.");
       return;
     }
     if (step === 5 && (!email || !password)) {
@@ -131,9 +131,9 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
       try {
         await onComplete({
           fullName,
-          studyType,
-          careerInterest,
-          nationality,
+          personalityType,
+          favoriteActivity,
+          dailyGoals,
           email,
           password
         });
@@ -160,7 +160,7 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
       case 1:
         return (
           <div className={`space-y-6 ${slideClass}`}>
-            <h2 className="text-center text-xl sm:text-2xl font-semibold text-[#2d333a] px-2">
+            <h2 className="text-center text-xl sm:text-2xl font-semibold text-text px-2">
               ¿Cómo te llamas?
             </h2>
             <div className="relative">
@@ -170,12 +170,12 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 autoFocus
-                className="peer block w-full rounded-md border border-[#c2c8d0] px-4 py-3 text-[15px] text-[#2d333a] placeholder-transparent focus:border-brand-primary focus:outline-none focus:ring-0 min-h-[44px]"
+                className="peer block w-full rounded-lg border border-border px-4 py-3 text-[15px] text-text placeholder-transparent focus:border-primary focus:outline-none min-h-[44px] bg-white transition-all"
                 placeholder="Tu nombre"
               />
               <label
                 htmlFor="fullName"
-                className="absolute left-4 top-0 -translate-y-1/2 bg-white px-1 text-xs text-[#6f7780] transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-placeholder-shown:text-[#6f7780] peer-focus:top-0 peer-focus:text-xs peer-focus:text-brand-primary"
+                className="absolute left-4 top-0 -translate-y-1/2 bg-white px-1 text-xs text-text-light transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary"
               >
                 Tu nombre
               </label>
@@ -186,23 +186,26 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
       case 2:
         return (
           <div className={`space-y-6 ${slideClass}`}>
-            <h2 className="text-center text-xl sm:text-2xl font-semibold text-[#2d333a] px-2">
-              Un gusto conocerte, <span className="text-brand-primary fade-in text-xl sm:text-2xl font-semibold">{fullName}</span> ¿qué tipo de estudio buscas?
+            <h2 className="text-center text-xl sm:text-2xl font-semibold text-text px-2">
+              ¡Hola, <span className="text-primary fade-in text-xl sm:text-2xl font-semibold">{fullName}</span>!<br/>¿Con qué personalidad te identificas?
             </h2>
             <div className="relative">
               <select
-                id="studyType"
-                value={studyType}
-                onChange={(e) => setStudyType(e.target.value)}
+                id="personalityType"
+                value={personalityType}
+                onChange={(e) => setPersonalityType(e.target.value)}
                 autoFocus
-                className="peer block w-full rounded-md border border-[#c2c8d0] px-4 py-3 text-[15px] text-[#2d333a] focus:border-brand-primary focus:outline-none focus:ring-0 bg-white min-h-[44px]"
+                className="peer block w-full rounded-lg border border-border px-4 py-3 text-[15px] text-text focus:border-primary focus:outline-none min-h-[44px] bg-white transition-all"
               >
-                <option value="">Selecciona una opción</option>
-                {STUDY_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
+                <option value="">Selecciona un personaje</option>
+                {PERSONALITY_TYPES.map((type) => {
+                  const character = PERSONALITY_TO_CHARACTER[type];
+                  return (
+                    <option key={type} value={type}>
+                      {character.name}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>
@@ -211,47 +214,21 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
       case 3:
         return (
           <div className={`space-y-6 ${slideClass}`}>
-            <h2 className="text-center text-xl sm:text-2xl font-semibold text-[#2d333a] px-2">
-              Genial, <span className="text-brand-primary fade-in text-xl sm:text-2xl font-semibold">{fullName}</span>. ¿En qué carrera buscas obtener un <span className="text-brand-primary fade-in text-xl sm:text-2xl font-semibold">{studyType}</span>?
-            </h2>
-            <div className="relative">
-              <input
-                id="careerInterest"
-                type="text"
-                value={careerInterest}
-                onChange={(e) => setCareerInterest(e.target.value)}
-                autoFocus
-                className="peer block w-full rounded-md border border-[#c2c8d0] px-4 py-3 text-[15px] text-[#2d333a] placeholder-transparent focus:border-brand-primary focus:outline-none focus:ring-0 min-h-[44px]"
-                placeholder="Ej: Medicina, Ingeniería, Derecho..."
-              />
-              <label
-                htmlFor="careerInterest"
-                className="absolute left-4 top-0 -translate-y-1/2 bg-white px-1 text-xs text-[#6f7780] transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-placeholder-shown:text-[#6f7780] peer-focus:top-0 peer-focus:text-xs peer-focus:text-brand-primary"
-              >
-                Carrera
-              </label>
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div className={`space-y-6 ${slideClass}`}>
-            <h2 className="text-center text-xl sm:text-2xl font-semibold text-[#2d333a] px-2">
-              Excelente. ¿Bajo qué nacionalidad buscas estudiar en España un <span className="text-brand-primary fade-in text-xl sm:text-2xl font-semibold">{studyType}</span> en <span className="text-brand-primary fade-in text-xl sm:text-2xl font-semibold">{careerInterest}</span>?
+            <h2 className="text-center text-xl sm:text-2xl font-semibold text-text px-2">
+              ¡Genial, <span className="text-primary fade-in text-xl sm:text-2xl font-semibold">{fullName}</span>!<br/>¿Cuál es tu actividad favorita?
             </h2>
             <div className="relative">
               <select
-                id="nationality"
-                value={nationality}
-                onChange={(e) => setNationality(e.target.value)}
+                id="favoriteActivity"
+                value={favoriteActivity}
+                onChange={(e) => setFavoriteActivity(e.target.value)}
                 autoFocus
-                className="peer block w-full rounded-md border border-[#c2c8d0] px-4 py-3 text-[15px] text-[#2d333a] focus:border-brand-primary focus:outline-none focus:ring-0 bg-white min-h-[44px]"
+                className="peer block w-full rounded-lg border border-border px-4 py-3 text-[15px] text-text focus:border-primary focus:outline-none min-h-[44px] bg-white transition-all"
               >
-                <option value="">Selecciona tu nacionalidad</option>
-                {LATIN_AMERICAN_COUNTRIES.map((country) => (
-                  <option key={country.name} value={country.name}>
-                    {country.flag} {country.name}
+                <option value="">Selecciona tu actividad favorita</option>
+                {FAVORITE_ACTIVITIES.map((activity) => (
+                  <option key={activity} value={activity}>
+                    {activity}
                   </option>
                 ))}
               </select>
@@ -259,11 +236,37 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
           </div>
         );
 
+      case 4:
+        return (
+          <div className={`space-y-6 ${slideClass}`}>
+            <h2 className="text-center text-xl sm:text-2xl font-semibold text-text px-2">
+              <span className="text-primary fade-in text-xl sm:text-2xl font-semibold">{fullName}</span>, ¿cuáles son tus objetivos diarios?
+            </h2>
+            <div className="relative">
+              <textarea
+                id="dailyGoals"
+                value={dailyGoals}
+                onChange={(e) => setDailyGoals(e.target.value)}
+                autoFocus
+                rows={4}
+                className="peer block w-full rounded-lg border border-border px-4 py-3 text-[15px] text-text placeholder-transparent focus:border-primary focus:outline-none min-h-[100px] bg-white transition-all resize-none"
+                placeholder="Ej: Organizar mi día, mantener motivación..."
+              />
+              <label
+                htmlFor="dailyGoals"
+                className="absolute left-4 top-0 -translate-y-1/2 bg-white px-1 text-xs text-text-light transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary"
+              >
+                Tus objetivos diarios
+              </label>
+            </div>
+          </div>
+        );
+
       case 5:
         return (
           <div className={`space-y-6 ${slideClass}`}>
-            <h2 className="text-center text-xl sm:text-2xl font-semibold text-[#2d333a] px-2">
-              Muchas gracias, <span className="text-brand-primary fade-in text-xl sm:text-2xl font-semibold">{fullName}</span>. Ahora crea tu cuenta con correo electrónico y contraseña.
+            <h2 className="text-center text-xl sm:text-2xl font-semibold text-text px-2">
+              ¡Perfecto, <span className="text-primary fade-in text-xl sm:text-2xl font-semibold">{fullName}</span>!<br/>Crea tu cuenta para comenzar.
             </h2>
             <div className="space-y-4">
               <div className="relative">
@@ -271,16 +274,17 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
                   id="email"
                   type="email"
                   value={email}
-                  readOnly
-                  disabled
-                  className="peer block w-full rounded-md border border-[#c2c8d0] px-4 py-3 text-[15px] text-[#6f7780] bg-gray-50 cursor-not-allowed min-h-[44px]"
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoFocus
+                  required
+                  className="peer block w-full rounded-lg border border-border px-4 py-3 text-[15px] text-text placeholder-transparent focus:border-primary focus:outline-none min-h-[44px] bg-white transition-all"
                   placeholder="Correo electrónico"
                 />
                 <label
                   htmlFor="email"
-                  className="absolute left-4 top-0 -translate-y-1/2 bg-white px-1 text-xs text-[#6f7780]"
+                  className="absolute left-4 top-0 -translate-y-1/2 bg-white px-1 text-xs text-text-light transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary"
                 >
-                  Correo electrónico (del pago)
+                  Correo electrónico
                 </label>
               </div>
               <div className="relative">
@@ -291,12 +295,12 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
                   onChange={(e) => setPassword(e.target.value)}
                   autoFocus
                   required
-                  className="peer block w-full rounded-md border border-[#c2c8d0] px-4 py-3 text-[15px] text-[#2d333a] placeholder-transparent focus:border-brand-primary focus:outline-none focus:ring-0 min-h-[44px]"
+                  className="peer block w-full rounded-lg border border-border px-4 py-3 text-[15px] text-text placeholder-transparent focus:border-primary focus:outline-none min-h-[44px] bg-white transition-all"
                   placeholder="Contraseña"
                 />
                 <label
                   htmlFor="password"
-                  className="absolute left-4 top-0 -translate-y-1/2 bg-white px-1 text-xs text-[#6f7780] transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-placeholder-shown:text-[#6f7780] peer-focus:top-0 peer-focus:text-xs peer-focus:text-brand-primary"
+                  className="absolute left-4 top-0 -translate-y-1/2 bg-white px-1 text-xs text-text-light transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary"
                 >
                   Contraseña
                 </label>
@@ -310,31 +314,34 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
     }
   };
 
-  // Mostrar animación primero
-  if (showAnimation) {
-    return <PaymentSuccessAnimation onComplete={handleAnimationComplete} />;
-  }
-
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 sm:px-6 lg:px-8 animate-fade-in">
-      <div className="w-full max-w-[400px] lg:max-w-[450px] space-y-6 sm:space-y-8 animate-slide-up">
-        <div className="flex flex-col items-center">
-          <img
-            src="https://storage.googleapis.com/msgsndr/IRGxH3YhbSBNF8NVepYv/media/67ec02b6379294639cf06e08.png"
-            alt="Estudia Seguro"
-            className="mb-6 h-12 w-auto"
-          />
-        </div>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-white md:bg-gradient-to-br md:from-white md:via-pink-50/40 md:to-white px-4 sm:px-6 lg:px-8 py-8 relative">
+      {/* Logo en esquina superior derecha */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
+        <img
+          src="https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/d14ea819-bcbe-49dc-99b9-e81086106809/dfrh2ua-b7109a51-d4a9-4ad3-a296-5080c8f2c81d.png"
+          alt="Ladybug"
+          className="h-12 w-12 sm:h-14 sm:w-14 object-contain"
+        />
+      </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="min-h-[200px] relative overflow-hidden">
+      {/* Efectos decorativos de fondo solo en desktop */}
+      <div className="hidden md:block absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-ladybug-pink/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-ladybug-red/10 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="w-full max-w-[500px] lg:max-w-[550px] space-y-8 sm:space-y-10 relative z-10">
+
+        <form className="mt-8 space-y-6 bg-white rounded-lg p-8 sm:p-10 border border-border shadow-minimal" onSubmit={handleSubmit}>
+          <div className="flex flex-col relative overflow-hidden">
             <div className="w-full">
               {renderStep()}
             </div>
           </div>
 
           {error && (
-            <div className="text-center text-sm text-red-600">
+            <div className="text-center text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg py-2 px-3">
               {error}
             </div>
           )}
@@ -344,7 +351,7 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
               <button
                 type="button"
                 onClick={handlePrevious}
-                className="flex-1 rounded-md border border-[#c2c8d0] px-4 py-3 text-sm font-medium text-[#2d333a] hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 min-h-[44px]"
+                className="flex-1 rounded-lg border border-border px-4 py-3 text-sm font-medium text-text hover:bg-gray-50 focus:outline-none min-h-[44px] transition-all"
               >
                 Anterior
               </button>
@@ -352,7 +359,7 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
             <button
               type="submit"
               disabled={loading}
-              className={`${step > 1 ? 'flex-1' : 'w-full'} rounded-md bg-brand-primary px-4 py-3 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px]`}
+              className={`${step > 1 ? 'flex-1' : 'w-full'} rounded-lg bg-primary px-4 py-3 text-sm font-medium text-white hover:opacity-90 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px] transition-all`}
             >
               {loading ? "Creando cuenta..." : step === 5 ? "Crear cuenta" : "Continuar"}
             </button>
@@ -362,12 +369,12 @@ export function OnboardingFlow({ onComplete, initialEmail = "" }: OnboardingFlow
             {[1, 2, 3, 4, 5].map((s) => (
               <div
                 key={s}
-                className={`h-2 w-2 rounded-full transition-colors ${
+                className={`h-2 w-2 rounded-full transition-all ${
                   s === step
-                    ? "bg-brand-primary"
+                    ? "bg-primary"
                     : s < step
-                    ? "bg-brand-primary opacity-50"
-                    : "bg-gray-300"
+                    ? "bg-primary/50"
+                    : "bg-border"
                 }`}
               />
             ))}

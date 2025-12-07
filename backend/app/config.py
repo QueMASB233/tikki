@@ -1,13 +1,14 @@
 from functools import lru_cache
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     supabase_url: str
-    supabase_service_role_key: str
+    supabase_service_role_key: str = ""  # Temporalmente opcional, pero necesario para crear usuarios
     supabase_anon_key: str
-    stripe_secret_key: str
-    stripe_webhook_secret: str
+    stripe_secret_key: str = ""  # Opcional - Stripe deshabilitado
+    stripe_webhook_secret: str = ""  # Opcional - Stripe deshabilitado
     deepseek_api_key: str = ""
     # jwt_secret ya no es necesario, pero lo mantenemos por compatibilidad
     jwt_secret: str = "deprecated"
@@ -20,7 +21,10 @@ class Settings(BaseSettings):
     highlevel_location_id: str = ""
 
     model_config = SettingsConfigDict(
-        env_file=(".env", ".env.local"), env_file_encoding="utf-8", extra="allow"
+        # Buscar .env en el directorio raíz del proyecto (dos niveles arriba desde backend/app/)
+        env_file=(Path(__file__).parent.parent.parent / ".env", Path(__file__).parent.parent.parent / ".env.local"),
+        env_file_encoding="utf-8",
+        extra="allow"
     )
 
 
