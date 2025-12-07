@@ -10,12 +10,12 @@ export function ReactQueryProvider({ children }: { children: React.ReactNode }) 
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 1000 * 30, // 30 seconds - datos frescos por 30s
+            staleTime: 0, // Siempre considerar datos como stale para forzar refetch cuando se invalida
             gcTime: 1000 * 60 * 5, // 5 minutes - mantener en cache por 5min
             retry: 1,
             refetchOnWindowFocus: false, // No refetch al cambiar de ventana
             refetchOnReconnect: true, // Refetch al reconectar
-            refetchOnMount: false, // No refetch al montar si hay datos en cache
+            refetchOnMount: true, // Refetch al montar para asegurar datos frescos
           },
           mutations: {
             retry: 0, // No reintentar mutaciones

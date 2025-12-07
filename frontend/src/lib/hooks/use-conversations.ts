@@ -7,7 +7,9 @@ export function useConversations() {
   return useQuery({
     queryKey: CONVERSATIONS_QUERY_KEY,
     queryFn: fetchConversations,
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 0, // Siempre considerar los datos como stale para forzar refetch
+    refetchOnMount: true, // Refetch al montar el componente
+    refetchOnWindowFocus: false, // No refetch al cambiar de ventana
   });
 }
 
@@ -16,14 +18,25 @@ export function useCreateConversation() {
 
   return useMutation({
     mutationFn: (title?: string) => createConversation(title),
-    onSuccess: (newConversation) => {
+    onSuccess: async (newConversation) => {
+      console.log(`[useCreateConversation] Conversation created: ${newConversation.id}`);
       // Optimistic update: agregar la nueva conversación al inicio de la lista
-      queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => [
-        newConversation,
-        ...old,
-      ]);
-      // Invalidar para refetch en background
-      queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+      queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => {
+        // Verificar que no exista ya (evitar duplicados)
+        const exists = old.some(conv => conv.id === newConversation.id);
+        if (exists) {
+          console.log(`[useCreateConversation] Conversation ${newConversation.id} already in cache, updating`);
+          return old.map(conv => conv.id === newConversation.id ? newConversation : conv);
+        }
+        console.log(`[useCreateConversation] Adding to cache: ${old.length} -> ${old.length + 1}`);
+        // Ordenar por updated_at descendente
+        const updated = [newConversation, ...old].sort((a, b) => 
+          new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+        );
+        return updated;
+      });
+      // Forzar refetch inmediato para asegurar sincronización
+      await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
     },
   });
 }
@@ -73,17 +86,22 @@ export function useDeleteConversation() {
         queryClient.setQueryData(CONVERSATIONS_QUERY_KEY, context.previousConversations);
       }
     },
-    onSuccess: (data, conversationId) => {
+    onSuccess: async (data, conversationId) => {
       console.log(`[useDeleteConversation] Successfully deleted conversation ${conversationId}`);
-      // Invalidar para asegurar sincronización (pero el optimistic update ya se aplicó)
-      queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+      // Forzar refetch inmediato para asegurar sincronización
+      await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
       // Asegurar que los mensajes también se limpien
       queryClient.removeQueries({ queryKey: ["messages", conversationId] });
+      // Limpiar cualquier rastro restante del cache
+      queryClient.removeQueries({ 
+        queryKey: ["messages", conversationId],
+        exact: false 
+      });
     },
-    onSettled: (data, error, conversationId) => {
+    onSettled: async (data, error, conversationId) => {
       console.log(`[useDeleteConversation] onSettled for ${conversationId}, error: ${!!error}`);
-      // Asegurar que todo esté sincronizado
-      queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+      // Forzar refetch para asegurar que todo esté sincronizado
+      await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
       // Limpiar cualquier rastro restante
       queryClient.removeQueries({ queryKey: ["messages", conversationId] });
     },

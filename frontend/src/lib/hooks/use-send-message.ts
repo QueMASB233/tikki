@@ -1,6 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { sendMessageStream, createConversation, Message, Conversation } from "@/lib/api-client";
 
+// Usar el mismo query key que useConversations
+const CONVERSATIONS_QUERY_KEY = ["conversations"];
+
 interface SendMessageOptions {
   content: string;
   conversationId: string | null;
@@ -28,7 +31,7 @@ export function useSendMessage() {
         
         // Actualizar cache de conversaciones con optimistic update
         // Usar el mismo query key que useConversations
-        queryClient.setQueryData<Conversation[]>(["conversations"], (old = []) => {
+        queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => {
           // Verificar que no exista ya (evitar duplicados)
           const exists = old.some(conv => conv.id === newConv.id);
           if (exists) {
@@ -43,8 +46,8 @@ export function useSendMessage() {
           return updated;
         });
         
-        // Invalidar para refetch en background y asegurar sincronización
-        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        // Forzar refetch inmediato para asegurar sincronización
+        await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
         
         // Notificar al componente que se creó una conversación
         if (onCreateConversation) {

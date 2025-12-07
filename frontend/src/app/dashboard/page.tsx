@@ -31,7 +31,7 @@ function DashboardContent() {
   const { playTransformation } = useSound();
 
   // React Query hooks - DEBEN estar antes de cualquier return condicional
-  const { data: conversations = [], isLoading: conversationsLoading } = useConversations();
+  const { data: conversations = [], isLoading: conversationsLoading, refetch: refetchConversations } = useConversations();
   const { data: messages = [], isLoading: messagesLoading } = useMessages(currentConversationId);
   const deleteConversationMutation = useDeleteConversation();
   const renameConversationMutation = useRenameConversation();
@@ -125,7 +125,7 @@ function DashboardContent() {
         }
       }
     },
-    [currentConversationId, sendMessageMutation, playTransformation]
+    [currentConversationId, sendMessageMutation, playTransformation, refetchConversations]
   );
 
   const handleNewConversation = useCallback(() => {
