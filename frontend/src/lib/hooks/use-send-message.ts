@@ -22,21 +22,22 @@ export function useSendMessage() {
       // Si no hay conversación, crear una primero
       if (!finalConversationId) {
         const title = content.length > 50 ? content.substring(0, 50) + "..." : content;
-        console.log(`[useSendMessage] Creating new conversation with title: "${title}"`);
+        console.log(`[useSendMessage] 📝 Creating new conversation with title: "${title}"`);
+        const startTime = Date.now();
         
         const newConv = await createConversation(title);
         finalConversationId = newConv.id;
+        const duration = Date.now() - startTime;
         
-        console.log(`[useSendMessage] Conversation created: ${finalConversationId}`);
+        console.log(`[useSendMessage] ✅ Conversation created in Supabase: ${finalConversationId} (${duration}ms)`);
+        console.log(`[useSendMessage] Conversation data:`, JSON.stringify(newConv));
         
         // Actualizar cache de conversaciones con optimistic update
-        // Usar el mismo query key que useConversations
         queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => {
           // Verificar que no exista ya (evitar duplicados)
           const exists = old.some(conv => conv.id === newConv.id);
           if (exists) {
             console.log(`[useSendMessage] Conversation ${finalConversationId} already in cache, updating`);
-            // Retornar nuevo array para forzar re-render
             return [...old.map(conv => conv.id === newConv.id ? newConv : conv)];
           }
           console.log(`[useSendMessage] Adding new conversation to cache: ${old.length} -> ${old.length + 1}`);
@@ -45,22 +46,22 @@ export function useSendMessage() {
             new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
           );
           console.log(`[useSendMessage] Updated conversation IDs: ${updated.map(c => c.id).join(', ')}`);
-          // Retornar nuevo array para forzar re-render
           return [...updated];
         });
         
-        // Invalidar y refetch para asegurar sincronización con el backend
-        // Usar invalidateQueries para que React Query maneje mejor el timing
+        // Invalidar y refetch desde Supabase para asegurar sincronización
+        console.log(`[useSendMessage] Invalidating and refetching conversations from Supabase...`);
         queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
-        // Refetch inmediatamente para actualizar el sidebar
         await queryClient.refetchQueries({ 
           queryKey: CONVERSATIONS_QUERY_KEY,
-          type: 'active' // Solo refetch queries activos
+          type: 'active'
         });
+        console.log(`[useSendMessage] ✅ Conversations refetched from Supabase`);
         
         // Notificar al componente que se creó una conversación
         // Esto debe hacerse después del refetch para asegurar que el sidebar se actualice
         if (onCreateConversation) {
+          console.log(`[useSendMessage] Notifying component of new conversation: ${finalConversationId}`);
           onCreateConversation(finalConversationId);
         }
       }

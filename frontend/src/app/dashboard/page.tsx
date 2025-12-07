@@ -33,11 +33,17 @@ function DashboardContent() {
   const { playTransformation } = useSound();
 
   // React Query hooks - DEBEN estar antes de cualquier return condicional
+  // ÚNICA fuente de verdad para conversaciones - viene directamente de Supabase
   const { data: conversations = [], isLoading: conversationsLoading, refetch: refetchConversations } = useConversations();
   
-  // Debug: Log conversations changes
+  // Debug: Log conversations changes desde Supabase
   useEffect(() => {
-    console.log(`[DASHBOARD] Conversations updated: ${conversations.length} conversations`, conversations.map(c => c.id));
+    console.log(`[DASHBOARD] 📊 Conversations updated from Supabase: ${conversations.length} conversations`);
+    if (conversations.length > 0) {
+      console.log(`[DASHBOARD] Conversation IDs from Supabase: ${conversations.map(c => c.id).join(', ')}`);
+    } else {
+      console.log(`[DASHBOARD] No conversations found in Supabase`);
+    }
   }, [conversations]);
   const { data: messages = [], isLoading: messagesLoading } = useMessages(currentConversationId);
   const deleteConversationMutation = useDeleteConversation();
@@ -110,16 +116,18 @@ function DashboardContent() {
           onCreateConversation: async (newConversationId) => {
             // Cuando se crea una nueva conversación, establecerla como activa
             // Esto hará que showWelcome cambie a false y muestre los mensajes
-            console.log(`[DASHBOARD] New conversation created: ${newConversationId}, invalidating queries`);
+            console.log(`[DASHBOARD] ✅ New conversation created: ${newConversationId}`);
+            console.log(`[DASHBOARD] Setting as current conversation and refreshing sidebar from Supabase...`);
             setCurrentConversationId(newConversationId);
-            // Invalidar y refetch para asegurar que aparezca en el sidebar
-            // Usar invalidateQueries para que React Query maneje mejor el timing
+            
+            // El hook useSendMessage ya hizo el refetch, pero hacemos uno adicional
+            // para asegurar que el sidebar se actualice inmediatamente
             queryClient.invalidateQueries({ queryKey: ["conversations"] });
-            // Refetch inmediatamente para actualizar el sidebar
             await queryClient.refetchQueries({ 
               queryKey: ["conversations"],
-              type: 'active' // Solo refetch queries activos
+              type: 'active'
             });
+            console.log(`[DASHBOARD] ✅ Sidebar refreshed from Supabase`);
           },
           onStreamingMessageId: (id) => {
             setStreamingMessageId(id);
@@ -132,14 +140,17 @@ function DashboardContent() {
         // Resetear modo transformación después de la respuesta
         resetTransformationAfterResponse();
         setStreamingMessageId(null);
+        
         // Asegurar que las conversaciones estén actualizadas después del stream
         // El hook ya invalida las conversaciones en onComplete, pero hacemos un refetch adicional
-        // para asegurar que el sidebar esté actualizado
+        // para asegurar que el sidebar esté sincronizado con Supabase
+        console.log(`[DASHBOARD] Refreshing conversations from Supabase after message stream...`);
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
         await queryClient.refetchQueries({ 
           queryKey: ["conversations"],
           type: 'active'
         });
+        console.log(`[DASHBOARD] ✅ Conversations refreshed from Supabase`);
       } catch (error) {
         console.error("[DASHBOARD] Failed to send message:", error);
         setStreamingMessageId(null);
@@ -164,7 +175,7 @@ function DashboardContent() {
 
   const handleDeleteConversation = useCallback(
     async (conversationId: string) => {
-      console.log(`[DASHBOARD] handleDeleteConversation called for: ${conversationId}`);
+      console.log(`[DASHBOARD] 🗑️ handleDeleteConversation called for: ${conversationId}`);
       
       // Si estamos viendo esta conversación, redirigir al welcome inmediatamente
       if (currentConversationId === conversationId) {
@@ -172,18 +183,18 @@ function DashboardContent() {
         setCurrentConversationId(null);
       }
 
-      // El hook maneja el optimistic update
+      // El hook maneja el optimistic update y el refetch desde Supabase
       // Si falla, el hook hará rollback automáticamente
       deleteConversationMutation.mutate(conversationId, {
         onSuccess: () => {
-          console.log(`[DASHBOARD] Conversation ${conversationId} deleted successfully`);
+          console.log(`[DASHBOARD] ✅ Conversation ${conversationId} deleted successfully from Supabase`);
           // Asegurar que no quede rastro
           if (currentConversationId === conversationId) {
             setCurrentConversationId(null);
           }
         },
         onError: (error) => {
-          console.error(`[DASHBOARD] Failed to delete conversation ${conversationId}:`, error);
+          console.error(`[DASHBOARD] ❌ Failed to delete conversation ${conversationId}:`, error);
           // Aquí podrías mostrar un toast de error si implementas el sistema de toasts
         },
       });

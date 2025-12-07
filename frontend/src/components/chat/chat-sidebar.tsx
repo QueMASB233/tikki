@@ -33,6 +33,16 @@ export function ChatSidebar({
   const [editTitle, setEditTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Log cuando las conversaciones cambian (solo en desarrollo)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[ChatSidebar] 📋 Rendering ${conversations.length} conversations`);
+      if (conversations.length > 0) {
+        console.log(`[ChatSidebar] Conversation IDs: ${conversations.map(c => c.id).join(', ')}`);
+      }
+    }
+  }, [conversations]);
+
   useEffect(() => {
     if (editingId && inputRef.current) {
       inputRef.current.focus();

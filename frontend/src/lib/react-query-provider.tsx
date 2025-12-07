@@ -11,11 +11,11 @@ export function ReactQueryProvider({ children }: { children: React.ReactNode }) 
         defaultOptions: {
           queries: {
             staleTime: 0, // Siempre considerar datos como stale para forzar refetch cuando se invalida
-            gcTime: 1000 * 60 * 5, // 5 minutes - mantener en cache por 5min
+            gcTime: 0, // NO mantener en cache después de desmontar - siempre refetch desde Supabase
             retry: 1,
             refetchOnWindowFocus: false, // No refetch al cambiar de ventana
             refetchOnReconnect: true, // Refetch al reconectar
-            refetchOnMount: true, // Refetch al montar para asegurar datos frescos
+            refetchOnMount: true, // Refetch al montar para asegurar datos frescos desde Supabase
           },
           mutations: {
             retry: 0, // No reintentar mutaciones

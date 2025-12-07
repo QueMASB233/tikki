@@ -6,8 +6,23 @@ const CONVERSATIONS_QUERY_KEY = ["conversations"];
 export function useConversations() {
   return useQuery({
     queryKey: CONVERSATIONS_QUERY_KEY,
-    queryFn: fetchConversations,
+    queryFn: async () => {
+      console.log(`[useConversations] Fetching conversations from Supabase API...`);
+      const startTime = Date.now();
+      try {
+        const conversations = await fetchConversations();
+        const duration = Date.now() - startTime;
+        console.log(`[useConversations] ✅ Fetched ${conversations.length} conversations from Supabase in ${duration}ms`);
+        console.log(`[useConversations] Conversation IDs from Supabase: ${conversations.map(c => c.id).join(', ') || 'none'}`);
+        return conversations;
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        console.error(`[useConversations] ❌ Error fetching conversations after ${duration}ms:`, error);
+        throw error;
+      }
+    },
     staleTime: 0, // Siempre considerar los datos como stale para forzar refetch
+    gcTime: 0, // NO mantener en cache - siempre refetch desde Supabase
     refetchOnMount: true, // Refetch al montar el componente
     refetchOnWindowFocus: false, // No refetch al cambiar de ventana
   });
@@ -17,16 +32,30 @@ export function useCreateConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (title?: string) => createConversation(title),
+    mutationFn: async (title?: string) => {
+      console.log(`[useCreateConversation] Creating conversation with title: "${title || 'null'}"`);
+      const startTime = Date.now();
+      try {
+        const newConversation = await createConversation(title);
+        const duration = Date.now() - startTime;
+        console.log(`[useCreateConversation] ✅ Conversation created in Supabase: ${newConversation.id} (${duration}ms)`);
+        console.log(`[useCreateConversation] Conversation data:`, JSON.stringify(newConversation));
+        return newConversation;
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        console.error(`[useCreateConversation] ❌ Error creating conversation after ${duration}ms:`, error);
+        throw error;
+      }
+    },
     onSuccess: async (newConversation) => {
-      console.log(`[useCreateConversation] Conversation created: ${newConversation.id}`);
+      console.log(`[useCreateConversation] onSuccess: Adding conversation ${newConversation.id} to cache`);
+      
       // Optimistic update: agregar la nueva conversación al inicio de la lista
       queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => {
         // Verificar que no exista ya (evitar duplicados)
         const exists = old.some(conv => conv.id === newConversation.id);
         if (exists) {
           console.log(`[useCreateConversation] Conversation ${newConversation.id} already in cache, updating`);
-          // Retornar nuevo array para forzar re-render
           return [...old.map(conv => conv.id === newConversation.id ? newConversation : conv)];
         }
         console.log(`[useCreateConversation] Adding to cache: ${old.length} -> ${old.length + 1}`);
@@ -35,10 +64,20 @@ export function useCreateConversation() {
           new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
         );
         console.log(`[useCreateConversation] Updated conversation IDs: ${updated.map(c => c.id).join(', ')}`);
-        return [...updated]; // Nuevo array para forzar re-render
+        return [...updated];
       });
-      // Forzar refetch inmediato para asegurar sincronización
-      await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+      
+      // Invalidar y refetch inmediatamente desde Supabase para sincronización
+      console.log(`[useCreateConversation] Invalidating and refetching conversations from Supabase...`);
+      queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+      await queryClient.refetchQueries({ 
+        queryKey: CONVERSATIONS_QUERY_KEY,
+        type: 'active'
+      });
+      console.log(`[useCreateConversation] ✅ Conversations refetched from Supabase`);
+    },
+    onError: (error) => {
+      console.error(`[useCreateConversation] ❌ Mutation failed:`, error);
     },
   });
 }
@@ -47,80 +86,74 @@ export function useDeleteConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (conversationId: string) => {
-      console.log(`[useDeleteConversation] Deleting conversation: ${conversationId}`);
-      return deleteConversation(conversationId);
+    mutationFn: async (conversationId: string) => {
+      console.log(`[useDeleteConversation] 🗑️ Deleting conversation ${conversationId} from Supabase...`);
+      const startTime = Date.now();
+      try {
+        const result = await deleteConversation(conversationId);
+        const duration = Date.now() - startTime;
+        console.log(`[useDeleteConversation] ✅ Conversation ${conversationId} deleted from Supabase (${duration}ms)`);
+        return result;
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        console.error(`[useDeleteConversation] ❌ Error deleting conversation ${conversationId} after ${duration}ms:`, error);
+        throw error;
+      }
     },
     onMutate: async (conversationId) => {
-      console.log(`[useDeleteConversation] onMutate: ${conversationId}`);
+      console.log(`[useDeleteConversation] onMutate: Preparing optimistic update for ${conversationId}`);
       
-      // Cancelar TODOS los queries en progreso relacionados
+      // Cancelar queries en progreso para evitar race conditions
       await queryClient.cancelQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
       await queryClient.cancelQueries({ queryKey: ["messages", conversationId] });
-      await queryClient.cancelQueries({ queryKey: ["messages"] }); // Cancelar todos los queries de mensajes
 
-      // Snapshot del valor anterior
+      // Snapshot del valor anterior para rollback
       const previousConversations = queryClient.getQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY);
-      console.log(`[useDeleteConversation] Previous conversations count: ${previousConversations?.length || 0}`);
-      if (previousConversations) {
+      const previousCount = previousConversations?.length || 0;
+      console.log(`[useDeleteConversation] Previous conversations count: ${previousCount}`);
+      if (previousConversations && previousCount > 0) {
         console.log(`[useDeleteConversation] Previous conversation IDs: ${previousConversations.map(c => c.id).join(', ')}`);
       }
 
-      // Optimistic update: remover la conversación inmediatamente
+      // Optimistic update: remover la conversación inmediatamente del cache
       queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => {
         if (!old || old.length === 0) {
-          console.log(`[useDeleteConversation] No conversations in cache`);
+          console.log(`[useDeleteConversation] No conversations in cache, nothing to remove`);
           return [];
         }
         const filtered = old.filter((conv) => conv.id !== conversationId);
         console.log(`[useDeleteConversation] Optimistic update: ${old.length} -> ${filtered.length} conversations`);
-        console.log(`[useDeleteConversation] Remaining conversation IDs: ${filtered.map(c => c.id).join(', ')}`);
-        
-        // Verificar que realmente se removió
-        const stillExists = filtered.some(conv => conv.id === conversationId);
-        if (stillExists) {
-          console.error(`[useDeleteConversation] ERROR: Conversation ${conversationId} still in filtered array!`);
-          // Forzar eliminación
-          return filtered.filter(conv => conv.id !== conversationId);
+        if (filtered.length > 0) {
+          console.log(`[useDeleteConversation] Remaining conversation IDs: ${filtered.map(c => c.id).join(', ')}`);
+        } else {
+          console.log(`[useDeleteConversation] No conversations remaining after deletion`);
         }
-        
-        // Retornar nuevo array para forzar re-render
-        return [...filtered];
+        return [...filtered]; // Nuevo array para forzar re-render
       });
 
-      // LIMPIAR COMPLETAMENTE todos los queries relacionados con esta conversación
-      // Remover queries de mensajes (exact match)
-      queryClient.removeQueries({ queryKey: ["messages", conversationId], exact: true });
-      // Remover queries de mensajes (partial match - cualquier query que incluya este conversationId)
-      queryClient.removeQueries({ queryKey: ["messages", conversationId], exact: false });
-      // Remover cualquier query que contenga este conversationId
-      queryClient.getQueryCache().getAll().forEach(query => {
-        const queryKey = query.queryKey;
-        if (Array.isArray(queryKey) && queryKey.includes(conversationId)) {
-          console.log(`[useDeleteConversation] Removing query with key:`, queryKey);
-          queryClient.removeQueries({ queryKey });
-        }
-      });
+      // Limpiar queries de mensajes relacionados
+      queryClient.removeQueries({ queryKey: ["messages", conversationId] });
 
       return { previousConversations, conversationId };
     },
     onError: (err, conversationId, context) => {
-      console.error(`[useDeleteConversation] Error deleting conversation ${conversationId}:`, err);
-      // Rollback en caso de error
+      console.error(`[useDeleteConversation] ❌ Error deleting conversation ${conversationId}:`, err);
+      
+      // Rollback: restaurar el estado anterior
       if (context?.previousConversations) {
-        console.log(`[useDeleteConversation] Rolling back to previous state`);
+        console.log(`[useDeleteConversation] 🔄 Rolling back to previous state`);
         queryClient.setQueryData(CONVERSATIONS_QUERY_KEY, context.previousConversations);
+        const restoredCount = context.previousConversations.length;
+        console.log(`[useDeleteConversation] ✅ Rollback complete: ${restoredCount} conversations restored`);
       }
     },
     onSuccess: async (data, conversationId) => {
-      console.log(`[useDeleteConversation] Successfully deleted conversation ${conversationId}`);
+      console.log(`[useDeleteConversation] ✅ Successfully deleted conversation ${conversationId} from Supabase`);
       
-      // LIMPIAR COMPLETAMENTE todo el cache relacionado
-      // 1. Remover queries de mensajes
-      queryClient.removeQueries({ queryKey: ["messages", conversationId], exact: true });
-      queryClient.removeQueries({ queryKey: ["messages", conversationId], exact: false });
+      // Limpiar queries de mensajes relacionados
+      queryClient.removeQueries({ queryKey: ["messages", conversationId] });
       
-      // 2. Asegurar que la conversación no esté en el cache de conversaciones
+      // Asegurar que la conversación no esté en el cache (por si acaso)
       queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => {
         const filtered = old.filter((conv) => conv.id !== conversationId);
         if (filtered.length !== old.length) {
@@ -129,48 +162,28 @@ export function useDeleteConversation() {
         return [...filtered];
       });
       
-      // 3. Limpiar cualquier query que contenga este conversationId
-      queryClient.getQueryCache().getAll().forEach(query => {
-        const queryKey = query.queryKey;
-        if (Array.isArray(queryKey) && queryKey.includes(conversationId)) {
-          console.log(`[useDeleteConversation] Removing remaining query with key:`, queryKey);
-          queryClient.removeQueries({ queryKey });
-        }
+      // Invalidar y refetch desde Supabase para asegurar sincronización
+      console.log(`[useDeleteConversation] Invalidating and refetching conversations from Supabase...`);
+      queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+      await queryClient.refetchQueries({ 
+        queryKey: CONVERSATIONS_QUERY_KEY,
+        type: 'active'
       });
       
-      // 4. Forzar refetch inmediato para sincronizar con backend
-      // Pero filtrar la conversación eliminada si todavía aparece
-      console.log(`[useDeleteConversation] Forcing immediate refetch to sync with backend`);
-      await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
-      
-      // 5. Verificar después del refetch que no esté en el cache
+      // Verificar que la conversación eliminada no esté en el cache después del refetch
       const afterRefetch = queryClient.getQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY);
       const stillExists = afterRefetch?.some(conv => conv.id === conversationId);
       if (stillExists) {
-        console.error(`[useDeleteConversation] ERROR: Conversation ${conversationId} still in cache after refetch! Forcing removal...`);
+        console.error(`[useDeleteConversation] ⚠️ WARNING: Conversation ${conversationId} still in cache after refetch! Forcing removal...`);
         queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => {
           return old.filter((conv) => conv.id !== conversationId);
         });
       } else {
-        console.log(`[useDeleteConversation] Verified: Conversation ${conversationId} successfully removed from cache`);
-      }
-    },
-    onSettled: async (data, error, conversationId) => {
-      console.log(`[useDeleteConversation] onSettled for ${conversationId}, error: ${!!error}`);
-      
-      // Limpiar cualquier rastro restante
-      queryClient.removeQueries({ queryKey: ["messages", conversationId], exact: true });
-      queryClient.removeQueries({ queryKey: ["messages", conversationId], exact: false });
-      
-      // Asegurar que la conversación no esté en el cache
-      queryClient.setQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY, (old = []) => {
-        return old.filter((conv) => conv.id !== conversationId);
-      });
-      
-      // Si hubo error, hacer refetch para rollback
-      if (error) {
-        console.log(`[useDeleteConversation] Error occurred, refetching to sync state`);
-        await queryClient.refetchQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+        const finalCount = afterRefetch?.length || 0;
+        console.log(`[useDeleteConversation] ✅ Verified: Conversation ${conversationId} successfully removed. Final count: ${finalCount}`);
+        if (finalCount > 0) {
+          console.log(`[useDeleteConversation] Final conversation IDs: ${afterRefetch?.map(c => c.id).join(', ')}`);
+        }
       }
     },
   });
@@ -180,9 +193,22 @@ export function useRenameConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ conversationId, title }: { conversationId: string; title: string }) =>
-      renameConversation(conversationId, title),
+    mutationFn: async ({ conversationId, title }: { conversationId: string; title: string }) => {
+      console.log(`[useRenameConversation] ✏️ Renaming conversation ${conversationId} to "${title}"`);
+      const startTime = Date.now();
+      try {
+        const updated = await renameConversation(conversationId, title);
+        const duration = Date.now() - startTime;
+        console.log(`[useRenameConversation] ✅ Conversation ${conversationId} renamed in Supabase (${duration}ms)`);
+        return updated;
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        console.error(`[useRenameConversation] ❌ Error renaming conversation ${conversationId} after ${duration}ms:`, error);
+        throw error;
+      }
+    },
     onMutate: async ({ conversationId, title }) => {
+      console.log(`[useRenameConversation] onMutate: Preparing optimistic update for ${conversationId}`);
       await queryClient.cancelQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
 
       const previousConversations = queryClient.getQueryData<Conversation[]>(CONVERSATIONS_QUERY_KEY);
@@ -196,12 +222,21 @@ export function useRenameConversation() {
       return { previousConversations };
     },
     onError: (err, variables, context) => {
+      console.error(`[useRenameConversation] ❌ Error renaming conversation ${variables.conversationId}:`, err);
       if (context?.previousConversations) {
+        console.log(`[useRenameConversation] 🔄 Rolling back to previous state`);
         queryClient.setQueryData(CONVERSATIONS_QUERY_KEY, context.previousConversations);
       }
     },
-    onSettled: () => {
+    onSuccess: async () => {
+      console.log(`[useRenameConversation] ✅ Successfully renamed conversation, refreshing from Supabase...`);
+      // Invalidar y refetch desde Supabase para asegurar sincronización
       queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+      await queryClient.refetchQueries({ 
+        queryKey: CONVERSATIONS_QUERY_KEY,
+        type: 'active'
+      });
+      console.log(`[useRenameConversation] ✅ Conversations refreshed from Supabase`);
     },
   });
 }
