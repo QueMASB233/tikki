@@ -43,17 +43,18 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    console.log(`[GET /api/chat/history] Querying messages for user ${user.id}, conversation: ${conversationId || 'all'}`);
-    let query = supabase
+    // Si no hay conversation_id, no devolvemos mensajes huérfanos
+    if (!conversationId) {
+      console.log(`[GET /api/chat/history] No conversation_id provided -> returning []`);
+      return NextResponse.json([]);
+    }
+
+    console.log(`[GET /api/chat/history] Querying messages for user ${user.id}, conversation: ${conversationId}`);
+    const query = supabase
       .from("messages")
       .select("*")
-      .eq("user_id", user.id);
-
-    if (conversationId) {
-      query = query.eq("conversation_id", conversationId);
-    } else {
-      query = query.is("conversation_id", null);
-    }
+      .eq("user_id", user.id)
+      .eq("conversation_id", conversationId);
 
     const { data: messages, error } = await query.order("created_at", { ascending: true });
 
