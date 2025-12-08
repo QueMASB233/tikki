@@ -116,12 +116,24 @@ export function useSendMessage() {
             }
           },
           // onComplete: invalidar y refetch para obtener mensajes reales
-          (messageId: string, completedConversationId: string) => {
+          async (messageId: string, completedConversationId: string) => {
             // Invalidar mensajes para refetch y obtener los mensajes reales de la BD
             // Esto reemplazará los mensajes temporales con los reales
             queryClient.invalidateQueries({ queryKey: ["messages", completedConversationId] });
             // Invalidar conversaciones para actualizar updated_at
             queryClient.invalidateQueries({ queryKey: ["conversations"] });
+
+            // Refetch inmediato y forzado de los mensajes para evitar quedarnos con parciales
+            try {
+              const fresh = await queryClient.fetchQuery({
+                queryKey: ["messages", completedConversationId],
+                queryFn: () => fetchMessages(completedConversationId),
+              });
+              console.log(`[useSendMessage] Fetched ${fresh.length} messages after completion for conversation ${completedConversationId}`);
+            } catch (fetchErr) {
+              console.error('[useSendMessage] Error fetching messages after completion:', fetchErr);
+            }
+
             resolve({ messageId, conversationId: completedConversationId, streamingMessageId: tempAssistantMessageId });
           },
           // onError: remover mensajes temporales y rechazar
