@@ -1,4 +1,4 @@
-const CACHE_NAME = 'estudia-seguro-v1';
+const CACHE_NAME = 'estudia-seguro-v2';
 const urlsToCache = [
   '/',
   '/login',
@@ -45,6 +45,12 @@ self.addEventListener('fetch', (event) => {
 
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  // No cache for API requests – always hit network to avoid stale data
+  if (event.request.url.includes('/api/')) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
