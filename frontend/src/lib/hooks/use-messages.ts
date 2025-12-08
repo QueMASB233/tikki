@@ -4,12 +4,19 @@ import { fetchMessages, Message } from "@/lib/api-client";
 export function useMessages(conversationId: string | null) {
   return useQuery<Message[]>({
     queryKey: ["messages", conversationId],
-    queryFn: () => fetchMessages(conversationId || undefined),
+    queryFn: async () => {
+      const msgs = await fetchMessages(conversationId || undefined);
+      console.log(`【useMessages】 Fetched ${msgs.length} messages for conversation ${conversationId}`);
+      if (msgs.length) {
+        console.log(`【useMessages】 Message IDs: ${msgs.map((m) => m.id).join(', ')}`);
+      }
+      return msgs;
+    },
     enabled: !!conversationId, // Solo ejecutar si hay conversationId
-    staleTime: 1000 * 30, // 30 seconds
-    // Mantener los datos en cache incluso cuando se deshabilita la query
-    // Esto permite que los mensajes temporales se muestren mientras se carga
-    placeholderData: (previousData) => previousData,
+    staleTime: 0, // siempre stale para refetch inmediato
+    gcTime: 0, // no mantener cache para evitar respuestas parciales
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 }
 
