@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       // RLS controla visibilidad; no filtramos por user_id para evitar excluir registros válidos
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true })
-      .limit(1000);
+      .limit(2000);
 
     if (error) {
       const duration = Date.now() - startTime;
@@ -69,6 +69,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const ids = (messages || []).map((m: any) => m.id).join(', ');
+    console.log(`[GET /api/chat/history] Supabase returned ${messages?.length || 0} messages. IDs: ${ids}`);
     console.log(`[GET /api/chat/history] Found ${messages?.length || 0} messages, decrypting...`);
     // Desencriptar mensajes
     const decryptedMessages = (messages || []).map((msg: any) => {
