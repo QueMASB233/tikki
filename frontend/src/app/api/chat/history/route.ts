@@ -49,14 +49,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([]);
     }
 
-    console.log(`[GET /api/chat/history] Querying messages for user ${user.id}, conversation: ${conversationId}`);
-    const query = supabase
+    console.log(`[GET /api/chat/history] Querying messages for conversation: ${conversationId}`);
+    const { data: messages, error } = await supabase
       .from("messages")
       .select("*")
-      .eq("user_id", user.id)
-      .eq("conversation_id", conversationId);
-
-    const { data: messages, error } = await query.order("created_at", { ascending: true });
+      // RLS controla visibilidad; no filtramos por user_id para evitar excluir registros válidos
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true })
+      .limit(1000);
 
     if (error) {
       const duration = Date.now() - startTime;
