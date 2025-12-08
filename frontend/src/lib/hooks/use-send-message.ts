@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { sendMessageStream, createConversation, Message, Conversation } from "@/lib/api-client";
+import { sendMessageStream, createConversation, fetchMessages, Message, Conversation } from "@/lib/api-client";
 
 // Usar el mismo query key que useConversations
 const CONVERSATIONS_QUERY_KEY = ["conversations"];
